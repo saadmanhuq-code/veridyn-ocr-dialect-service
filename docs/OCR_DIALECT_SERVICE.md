@@ -8,6 +8,15 @@ Shared cross-product OCR and Bengali dialect cue analysis. Primary deployment: *
 
 Set consumer `VERIDYN_OCR_URL` to **`https://veridyn-ocr-dialect-service.vercel.app`** (no trailing slash).
 
+## Web UI routes (OCR-first)
+
+| Route | Role |
+|-------|------|
+| **`/`** | **Primary** — document upload → Bengali + English OCR → extracted text → autofill candidate fields. Dialect analysis is a **collapsed add-on** panel (opt-in button after OCR). |
+| **`/lab`** | **Add-on** — full Bengali Dialect Phrase Lab (cue chips, regional RegSpeech12 samples, manual transcript analyze). Secondary to OCR; links back to `/`. |
+
+Product IA: OCR is the hero flow; dialect is never auto-run on upload and does not compete for attention on the landing page. API consumers (`protein-chain-bd`, etc.) call `/api/documents/extract` as primary; `/api/dialect/analyze` remains opt-in.
+
 ## Service URLs (self-hosted forks)
 - Dialect shares the same origin: `POST …/api/dialect/analyze` (no second base URL unless you split deployments manually).
 
