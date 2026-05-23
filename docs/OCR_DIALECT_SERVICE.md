@@ -2,9 +2,13 @@
 
 Shared cross-product OCR and Bengali dialect cue analysis. Primary deployment: **Next.js on Vercel** (see repo `veridyn-ocr-dialect-service`).
 
-## Service URLs
+## Canonical production deployment
 
-- Replace `https://YOUR_DEPLOY.vercel.app` with the deployed production hostname (set this as **`VERIDYN_OCR_URL`** on consuming apps).
+- **`https://veridyn-ocr-dialect-service.vercel.app`** (team `ravihuq-6378s-projects`; project `veridyn-ocr-dialect-service`)
+
+Set consumer `VERIDYN_OCR_URL` to **`https://veridyn-ocr-dialect-service.vercel.app`** (no trailing slash).
+
+## Service URLs (self-hosted forks)
 - Dialect shares the same origin: `POST …/api/dialect/analyze` (no second base URL unless you split deployments manually).
 
 ## Environment variables (names only — no secrets in git)
