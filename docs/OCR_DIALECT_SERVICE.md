@@ -1,105 +1,65 @@
 # OCR + dialect service
 
-Shared cross-product OCR and Bengali dialect cue analysis. Primary deployment: **Next.js on Vercel** (see repo `veridyn-ocr-dialect-service`).
+Standalone **Next.js** deployment for autonomous document OCR (**not mocked** — WASM `tesseract.js` on typical image/PDF/text inputs) plus an optional Bengali **dialect cue** analyzer. Canonical prod: **`https://veridyn-ocr-dialect-service.vercel.app`**.
 
-## Canonical production deployment
+## Product framing
 
-- **`https://veridyn-ocr-dialect-service.vercel.app`** (team `ravihuq-6378s-projects`; project `veridyn-ocr-dialect-service`)
+| Layer | Responsibility |
+|--------|----------------|
+| **Public UI (`/`)** | **Bengali Dialect Lab** — cue chips, RegSpeech-style regional samples, transcript, verdict panel. **Upload path runs real OCR first** and streams text into the transcript; dialect analyze is cue-based on whatever text is in the box (`POST /api/dialect/analyze`). |
+| **`/lab`** | Legacy path — **307/redirect to `/`** (everything lives on one page). |
+| **Private APIs** | `POST /api/documents/extract` (multipart file) · `POST /api/dialect/analyze` JSON body `{ "text": "…" }` · `GET /api/health`. |
 
-Set consumer `VERIDYN_OCR_URL` to **`https://veridyn-ocr-dialect-service.vercel.app`** (no trailing slash).
+Consumers (`protein-chain-bd`, future `bangla-decision-agent`, etc.) mount **`VERIDYN_OCR_URL`** and call **`/api/documents/extract`** on every document upload server-side — **automatic OCR backbone** independent of optional dialect UX.
 
-## Web UI routes (OCR-first)
+---
 
-| Route | Role |
-|-------|------|
-| **`/`** | **Primary** — document upload → Bengali + English OCR → extracted text → autofill candidate fields. Dialect analysis is a **collapsed add-on** panel (opt-in button after OCR). |
-| **`/lab`** | **Add-on** — full Bengali Dialect Phrase Lab (cue chips, regional RegSpeech12 samples, manual transcript analyze). Secondary to OCR; links back to `/`. |
+## Integration: `VERIDYN_OCR_URL` normalization
 
-Product IA: OCR is the hero flow; dialect is never auto-run on upload and does not compete for attention on the landing page. API consumers (`protein-chain-bd`, etc.) call `/api/documents/extract` as primary; `/api/dialect/analyze` remains opt-in.
+The PCBD/adapters **`extractViaVeridyn`** resolves the POST URL safely so env mistakes do not silently 404 → mock fallback:
 
-## Service URLs (self-hosted forks)
-- Dialect shares the same origin: `POST …/api/dialect/analyze` (no second base URL unless you split deployments manually).
+| You set… | Resolved POST endpoint |
+|-----------|-------------------------|
+| `https://svc.vercel.app` (bare `.vercel.app`) | `https://svc.vercel.app/api/documents/extract` |
+| `https://svc.vercel.app/api` | `https://svc.vercel.app/api/documents/extract` |
+| `https://sidecar.example.com` (non-Vercel) | `https://sidecar.example.com/documents/extract` (Fly/Python sidecar parity) |
+| Full URL ending in `/documents/extract` | Passthrough verbatim |
 
-## Environment variables (names only — no secrets in git)
+Recommended for this service: **`https://veridyn-ocr-dialect-service.vercel.app/api`**  
+(also accepts bare host — both resolve correctly.)
 
-| Variable | Scope | Meaning |
-|---------|-------|---------|
-| `VERIDYN_OCR_URL` | **Consumers** (e.g. `protein-chain-bd`, `bangla-decision-agent`) | HTTPS base URL of this service (**no trailing slash**) |
-| `VERIDYN_OCR_API_KEY` | **Consumers** + **this service** | Optional bearer token; clients send `Authorization: Bearer …`; server verifies when set |
-| `OCR_CORS_ORIGIN` | **This service** | Optional explicit CORS allow-origin (`*` default) |
+Mirror **`VERIDYN_OCR_API_KEY`** server-side where used; callers send **`Authorization: Bearer …`** only when configured.
 
-## API
+---
 
-### Health
+## API reference
 
-```http
-GET /api/health
-```
+### `GET /api/health`
 
-### Document extract (multipart — Veridyn sidecar–compatible keys)
+Runtime probe.
 
-```http
-POST /api/documents/extract
-Content-Type: multipart/form-data
-```
+### `POST /api/documents/extract`
 
-Fields:
+Multipart `file` (required), optional `language` (`ben+eng`, `ben`, …). Response aligns with upstream Veridyn/sidecar fields — includes **`full_text_normalized`** where available for long-text consumers.
 
-- **`file`** (required): PNG, JPG, WEBP, TIFF, PDF (text layer), DOCX, TXT, MD, CSV.
-- **`language`** (optional form field): OCR hint — examples: omitted / `ben+eng`, `ben`, `eng`.
+### `POST /api/dialect/analyze`
 
-Response mirrors the Python FastAPI shape where possible (`text_preview`, `extractable`, `warnings`, `candidate_facts`, `ocr_provenance`).
+JSON **`{ "text": "বাংলা …" }`**. Response: `schema_version: dialect_cue.v1`, **`evidence`** object with **`status`**, **`dialect_label`**, **`match_score`**, etc.
 
-Additive field for integrations that need downstream NLP/dialect beyond 1200 characters:
+Dialect is **never** inferred from OCR automatically — callers opt in.
 
-- **`full_text_normalized`**: normalized full text string (consumers should treat as candidate-only).
+---
 
-Dialect is **not** implied by OCR; call `/api/dialect/analyze`.
-
-### Dialect cues (ported lab heuristic)
-
-```http
-POST /api/dialect/analyze
-Content-Type: application/json
-```
-
-Body:
-
-```json
-{ "text": " … OCR / transcript text … " }
-```
-
-Response:
-
-```json
-{
-  "schema_version": "dialect_cue.v1",
-  "input_characters": 42,
-  "evidence": {
-    "status": "suggested" | "unresolved" | "missing_transcript",
-    "source": "transcript_match" | …,
-    "dialect_label": "sylhet" | … | null,
-    "speaker_region": "Sylhet" | … | null,
-    "match_score": 0.7123 | null,
-    "candidate_label": "phrase_chip" | … | null
-  }
-}
-```
-
-**Supported cue dialect variants** (Bangladesh regional exemplars wired in code): Sylhet, Barishal, Chattogram/Chittagong, Noakhali, plus bundled long-form Noakhali and Chittagong reference phrases copied from VERIDYN Bengali dialect lab.
-
-English-only input typically yields `unresolved` — dialect module targets Bangla transcripts.
-
-### Integrating from Node / serverless (example)
-
-Document extract (`protein-chain-bd` already aligns with this pattern via `extractViaVeridyn`):
+## Node client sketch
 
 ```typescript
-async function extractOcr(serviceBase: string, buf: Uint8Array, filename: string, apiKey?: string) {
+async function extractOcr(base: string, buf: Uint8Array, filename: string, apiKey?: string) {
   const form = new FormData();
   form.append("file", new Blob([buf]), filename);
-  const headers = apiKey?.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {};
-  const res = await fetch(`${serviceBase.replace(/\/+$/, "")}/api/documents/extract`, {
+  const headers: Record<string, string> = apiKey?.trim()
+    ? { Authorization: `Bearer ${apiKey.trim()}` }
+    : {};
+  const res = await fetch(`${base.replace(/\/+$/, "")}/api/documents/extract`, {
     method: "POST",
     body: form,
     headers,
@@ -108,20 +68,12 @@ async function extractOcr(serviceBase: string, buf: Uint8Array, filename: string
 }
 ```
 
-Dialect example:
+(Or rely on **`veridynExtractEndpoint()`** in `protein-chain-bd` — it maps env → correct suffix.)
 
-```typescript
-await fetch(`${base}/api/dialect/analyze`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    ...(apiKey?.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {}),
-  },
-  body: JSON.stringify({ text: normalizedText }),
-});
-```
+---
 
 ## Operational notes
 
-- **Vercel path** uses WASM Tesseract (`tesseract.js`). For scanned multi-page PDFs with native OCR + OSD (Veridyn `document_intake.py` parity), continue to deploy **`protein-chain-bd/scripts/veridyn-ocr-service`** on Docker/Fly/Railway and point `VERIDYN_OCR_URL` there instead.
-- **Warm latency**: First image OCR cold start may fetch language models; retries are acceptable for integrations.
+- **Multi-page raster PDF**: WASM path may degrade vs Docker sidecar (`protein-chain-bd/scripts/veridyn-ocr-service`). For maximal parity deploy that sidecar and point **`VERIDYN_OCR_URL`** at it.
+- **Warm latency**: first WASM OCR may download language blobs; retries are acceptable.
+- **`OCR_CORS_ORIGIN`** on this service scopes browser CORS; server-to-server calls do not rely on it.

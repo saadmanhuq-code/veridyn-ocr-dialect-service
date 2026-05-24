@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Veridyn Document OCR — English + Bengali",
+  title: "Veridyn Bengali Dialect Lab — OCR backbone",
   description:
-    "Document OCR for trade licenses and compliance docs (English + Bengali). Optional dialect cue add-on via /lab.",
+    "Public dialect lab UI with WASM OCR (English + Bengali). Products integrate POST /api/documents/extract; dialect cues via /api/dialect/analyze.",
 };
 
 export default function RootLayout({
