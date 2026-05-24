@@ -1,11 +1,7 @@
 import { createWorker } from "tesseract.js";
 import JSZip from "jszip";
-import { createRequire } from "module";
 import { buildDocumentFactCandidates } from "@/lib/document-facts";
-
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse: (data: Buffer) => Promise<{ text: string }> = require("pdf-parse");
+import { extractPdfTextLayer, loadPdfDocument, ocrPdfRasterPages } from "@/lib/pdf-raster-ocr";
 
 export class DocumentIntakeError extends Error {
   constructor(message: string) {
@@ -75,8 +71,8 @@ async function extractDocxText(content: Buffer): Promise<string> {
 }
 
 async function extractPdfEmbeddedText(content: Buffer): Promise<string> {
-  const res = await pdfParse(content);
-  return (res?.text ?? "").trim();
+  const doc = await loadPdfDocument(content);
+  return extractPdfTextLayer(doc);
 }
 
 function resolveLang(language: string | null | undefined): string {
@@ -168,27 +164,29 @@ export async function extractDocumentPayload(
     );
   } else if (ext === PDF) {
     intakeKind = "pdf_text";
-    text = await extractPdfEmbeddedText(content);
+    try {
+      text = await extractPdfEmbeddedText(content);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      warnings.push(`PDF text-layer read failed (${msg}); falling back to page OCR.`);
+      text = "";
+    }
     if (!text.trim()) {
-      warnings.push(
-        "PDF has no embedded text (likely scanned). This deployment does not OCR multi-page scans; upload page images.",
-      );
+      intakeKind = "pdf_scan_ocr";
+      const raster = await ocrPdfRasterPages(content, languageHint);
+      text = raster.text;
+      warnings.push(...raster.warnings);
+      ocrProvenance = raster.ocr_provenance;
     } else {
       warnings.push(
         "PDF text layer extracted (not OCR). Candidate evidence only until validated.",
       );
+      ocrProvenance = {
+        schema_version: "pdf_text_intake.v1",
+        engine: "pdf-parse",
+        status: "text_layer_candidate_only",
+      };
     }
-    ocrProvenance =
-      text.trim().length > 0
-        ? {
-            schema_version: "pdf_text_intake.v1",
-            engine: "pdf-parse",
-            status: "text_layer_candidate_only",
-          }
-        : {
-            schema_version: "pdf_text_intake.v1",
-            status: "no_embedded_text",
-          };
   } else {
     intakeKind = "image_scan";
     const img = await runImageOcr(content, languageHint);

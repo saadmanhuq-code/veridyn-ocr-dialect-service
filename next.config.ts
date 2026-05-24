@@ -7,7 +7,7 @@ const nextConfigDir = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: nextConfigDir,
-  serverExternalPackages: ["pdf-parse"],
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "tesseract.js"],
   experimental: {
     serverActions: {
       bodySizeLimit: "11mb",
