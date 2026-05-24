@@ -1,12 +1,13 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { recognizeBuffer } from "@/lib/ocr-engine";
+import { recognizeBufferTesseract } from "@/lib/ocr-engine";
+import { isOpenRouterVisionEnabled, ocrImageViaOpenRouter, preferOpenRouterOnVercel } from "@/lib/vision-ocr";
 
 const MAX_OCR_PAGES = 2;
 const RENDER_SCALE = 2;
-const MAX_OCR_WIDTH = 1800;
+const MAX_OCR_WIDTH = 1200;
 
 const workerPath = path.join(
   process.cwd(),
@@ -25,6 +26,29 @@ function resolveLang(language: string | null | undefined): string {
   if (low === "en" || low === "english" || low === "eng") return "eng";
   if (low === "bn" || low === "ben" || low === "bengali") return "ben";
   return l;
+}
+
+async function recognizeScanBuffer(
+  buf: Buffer,
+  languageHint: string | null | undefined,
+): Promise<{ text: string; confidence: number; engine: string }> {
+  const resolvedLang = resolveLang(languageHint);
+  if (preferOpenRouterOnVercel() || (isOpenRouterVisionEnabled() && process.env.OCR_ENGINE === "openrouter")) {
+    const vision = await ocrImageViaOpenRouter(buf, languageHint);
+    return { ...vision, engine: "openrouter_vision" };
+  }
+  const tess = await recognizeBufferTesseract(buf, resolvedLang);
+  return { ...tess, engine: "tesseract.js" };
+}
+
+async function downscaleForOcr(buf: Buffer, maxWidth = MAX_OCR_WIDTH): Promise<Buffer> {
+  const img = await loadImage(buf);
+  if (img.width <= maxWidth) return buf;
+  const scale = maxWidth / img.width;
+  const canvas = createCanvas(Math.ceil(img.width * scale), Math.ceil(img.height * scale));
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toBuffer("image/png");
 }
 
 export async function loadPdfDocument(pdfBuffer: Buffer): Promise<PDFDocumentProxy> {
@@ -73,10 +97,12 @@ export async function ocrPdfRasterPages(
   const pageTexts: string[] = [];
   let totalConfidence = 0;
   let confidenceSamples = 0;
+  let engineUsed = preferOpenRouterOnVercel() ? "openrouter_vision" : "tesseract.js";
 
   for (let pageNum = 1; pageNum <= pageCount; pageNum += 1) {
-    const png = await renderPdfPagePngScaled(doc, pageNum);
-    const { text: normalized, confidence } = await recognizeBuffer(png, resolvedLang);
+    const png = await downscaleForOcr(await renderPdfPagePngScaled(doc, pageNum));
+    const { text: normalized, confidence, engine } = await recognizeScanBuffer(png, languageHint);
+    engineUsed = engine;
     if (normalized) pageTexts.push(normalized);
     if (confidence > 0) {
       totalConfidence += confidence;
@@ -102,7 +128,7 @@ export async function ocrPdfRasterPages(
     warnings,
     ocr_provenance: {
       schema_version: "ocr_intake.v1",
-      engine: "tesseract.js",
+      engine: engineUsed,
       intake_path: "pdf_raster_ocr",
       language: resolvedLang,
       pages_ocrd: pageCount,
@@ -119,7 +145,8 @@ export async function ocrImageBuffer(
   languageHint: string | null | undefined,
 ): Promise<{ text: string; warnings: string[]; ocr_provenance: Record<string, unknown> }> {
   const resolvedLang = resolveLang(languageHint);
-  const { text, confidence } = await recognizeBuffer(buf, resolvedLang);
+  const scaled = await downscaleForOcr(buf);
+  const { text, confidence, engine } = await recognizeScanBuffer(scaled, languageHint);
   const warnings = text
     ? ["OCR text is candidate evidence only until reviewed or validated."]
     : ["OCR ran but did not detect readable text in this scan."];
@@ -128,7 +155,7 @@ export async function ocrImageBuffer(
     warnings,
     ocr_provenance: {
       schema_version: "ocr_intake.v1",
-      engine: "tesseract.js",
+      engine,
       language: resolvedLang,
       language_source: languageHint ? "explicit" : "default_ben_eng",
       status: text ? "text_extracted_candidate_only" : "no_text_detected",
