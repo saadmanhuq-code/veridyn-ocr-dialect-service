@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { recognizeBufferTesseract } from "@/lib/ocr-engine";
-import { isOpenRouterVisionEnabled, ocrImageViaOpenRouter, preferOpenRouterOnVercel } from "@/lib/vision-ocr";
+import { isOpenRouterVisionEnabled, ocrImageViaOpenRouter } from "@/lib/vision-ocr";
 
 const MAX_OCR_PAGES = 2;
 const RENDER_SCALE = 2;
@@ -33,9 +33,13 @@ async function recognizeScanBuffer(
   languageHint: string | null | undefined,
 ): Promise<{ text: string; confidence: number; engine: string }> {
   const resolvedLang = resolveLang(languageHint);
-  if (preferOpenRouterOnVercel() || (isOpenRouterVisionEnabled() && process.env.OCR_ENGINE === "openrouter")) {
-    const vision = await ocrImageViaOpenRouter(buf, languageHint);
-    return { ...vision, engine: "openrouter_vision" };
+  if (isOpenRouterVisionEnabled()) {
+    try {
+      const vision = await ocrImageViaOpenRouter(buf, languageHint);
+      return { ...vision, engine: "openrouter_vision" };
+    } catch {
+      /* fall through to tesseract when OpenRouter unavailable */
+    }
   }
   const tess = await recognizeBufferTesseract(buf, resolvedLang);
   return { ...tess, engine: "tesseract.js" };
@@ -97,7 +101,7 @@ export async function ocrPdfRasterPages(
   const pageTexts: string[] = [];
   let totalConfidence = 0;
   let confidenceSamples = 0;
-  let engineUsed = preferOpenRouterOnVercel() ? "openrouter_vision" : "tesseract.js";
+  let engineUsed = "tesseract.js";
 
   for (let pageNum = 1; pageNum <= pageCount; pageNum += 1) {
     const png = await downscaleForOcr(await renderPdfPagePngScaled(doc, pageNum));

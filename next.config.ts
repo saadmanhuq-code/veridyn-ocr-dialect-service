@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     "/api/documents/extract": [
       "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
       "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+      "./node_modules/tesseract.js/dist/worker.min.js",
+      "./node_modules/tesseract.js-core/tesseract-core-lstm.wasm.js",
       "./tessdata/**",
     ],
   },
