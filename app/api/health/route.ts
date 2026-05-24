@@ -15,7 +15,9 @@ export async function GET(req: NextRequest) {
   let ocrWarm: string | undefined;
   if (req.nextUrl.searchParams.get("warm") === "ocr") {
     try {
-      if ((isGeminiVisionEnabled() || isOpenRouterVisionEnabled()) && process.env.VERCEL) {
+      if (process.env.VERCEL && !isGeminiVisionEnabled() && !isOpenRouterVisionEnabled()) {
+        ocrWarm = "vision_keys_required";
+      } else if ((isGeminiVisionEnabled() || isOpenRouterVisionEnabled()) && process.env.VERCEL) {
         ocrWarm = "vision_ready";
       } else {
         await getOcrWorker();
