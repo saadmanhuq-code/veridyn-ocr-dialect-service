@@ -1,10 +1,50 @@
-/** Fast image OCR on Vercel via OpenRouter vision (Gemini Flash). */
+/** Fast image OCR on Vercel — OpenRouter / Gemini / Cloud Vision; local dev uses tesseract. */
 
 function mimeFromBuffer(buf: Buffer): string {
   if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
   if (buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
-  if (buf[0] === 0x47 && buf[1] === 0x49) return "image/gif";
   return "image/png";
+}
+
+async function ocrImageViaGeminiStudio(
+  imageBytes: Buffer,
+): Promise<{ text: string; confidence: number }> {
+  const apiKey =
+    process.env.GOOGLE_AI_STUDIO_KEY?.trim() ||
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.GOOGLE_CLOUD_VISION_API_KEY?.trim();
+  if (!apiKey) throw new Error("Gemini API key is not configured");
+
+  const b64 = imageBytes.toString("base64");
+  const mime = mimeFromBuffer(imageBytes);
+  const model = process.env.GEMINI_OCR_MODEL?.trim() || "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: "Extract every line of text from this trade licence or certificate. Return plain text only." },
+            { inline_data: { mime_type: mime, data: b64 } },
+          ],
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(55_000),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Gemini vision HTTP ${res.status}: ${detail.slice(0, 200)}`);
+  }
+  const data = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = (data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("\n") ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { text, confidence: text ? 0.87 : 0.1 };
 }
 
 export async function ocrImageViaOpenRouter(
@@ -84,6 +124,38 @@ export function isOpenRouterVisionEnabled(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY?.trim());
 }
 
-export function preferOpenRouterOnVercel(): boolean {
-  return Boolean(process.env.VERCEL) && isOpenRouterVisionEnabled();
+export function isGeminiVisionEnabled(): boolean {
+  return Boolean(
+    process.env.GOOGLE_AI_STUDIO_KEY?.trim() ||
+      process.env.GEMINI_API_KEY?.trim(),
+  );
+}
+
+export async function ocrImageViaBestVision(
+  imageBytes: Buffer,
+  languageHint: string | null | undefined,
+): Promise<{ text: string; confidence: number; engine: string }> {
+  const errors: string[] = [];
+  if (isGeminiVisionEnabled()) {
+    try {
+      const g = await ocrImageViaGeminiStudio(imageBytes);
+      return { ...g, engine: "gemini_vision" };
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
+  if (isOpenRouterVisionEnabled()) {
+    try {
+      const o = await ocrImageViaOpenRouter(imageBytes, languageHint);
+      return { ...o, engine: "openrouter_vision" };
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
+  if (process.env.VERCEL) {
+    throw new Error(
+      `Image OCR unavailable on Vercel (${errors.join("; ") || "no vision API keys"}). Set GOOGLE_AI_STUDIO_KEY or OPENROUTER_API_KEY with credits.`,
+    );
+  }
+  throw new Error(errors.join("; ") || "No vision OCR provider configured");
 }

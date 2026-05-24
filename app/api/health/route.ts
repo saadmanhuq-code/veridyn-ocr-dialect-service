@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { corsHeaders } from "@/lib/cors";
 import { getOcrWorker } from "@/lib/ocr-engine";
-import { isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
+import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
   let ocrWarm: string | undefined;
   if (req.nextUrl.searchParams.get("warm") === "ocr") {
     try {
-      if (isOpenRouterVisionEnabled() && process.env.VERCEL) {
-        ocrWarm = "openrouter_ready";
+      if ((isGeminiVisionEnabled() || isOpenRouterVisionEnabled()) && process.env.VERCEL) {
+        ocrWarm = "vision_ready";
       } else {
         await getOcrWorker();
         ocrWarm = "ready";

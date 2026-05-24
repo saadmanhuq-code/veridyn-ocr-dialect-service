@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { recognizeBufferTesseract } from "@/lib/ocr-engine";
-import { isOpenRouterVisionEnabled, ocrImageViaOpenRouter } from "@/lib/vision-ocr";
+import { isGeminiVisionEnabled, isOpenRouterVisionEnabled, ocrImageViaBestVision } from "@/lib/vision-ocr";
 
 const MAX_OCR_PAGES = 2;
 const RENDER_SCALE = 2;
@@ -33,12 +33,11 @@ async function recognizeScanBuffer(
   languageHint: string | null | undefined,
 ): Promise<{ text: string; confidence: number; engine: string }> {
   const resolvedLang = resolveLang(languageHint);
-  if (isOpenRouterVisionEnabled()) {
+  if (process.env.VERCEL || isGeminiVisionEnabled() || isOpenRouterVisionEnabled()) {
     try {
-      const vision = await ocrImageViaOpenRouter(buf, languageHint);
-      return { ...vision, engine: "openrouter_vision" };
-    } catch {
-      /* fall through to tesseract when OpenRouter unavailable */
+      return await ocrImageViaBestVision(buf, languageHint);
+    } catch (e) {
+      if (process.env.VERCEL) throw e;
     }
   }
   const tess = await recognizeBufferTesseract(buf, resolvedLang);
