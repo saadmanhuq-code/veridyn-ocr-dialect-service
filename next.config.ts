@@ -7,10 +7,17 @@ const nextConfigDir = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: nextConfigDir,
-  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "tesseract.js"],
+  serverExternalPackages: ["@napi-rs/canvas", "tesseract.js"],
   experimental: {
     serverActions: {
       bodySizeLimit: "11mb",
+    },
+    outputFileTracingIncludes: {
+      "/api/documents/extract": [
+        "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+        "./node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+        "./tessdata/**",
+      ],
     },
   },
 };

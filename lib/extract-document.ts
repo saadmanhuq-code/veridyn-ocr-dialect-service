@@ -1,7 +1,6 @@
-import { createWorker } from "tesseract.js";
 import JSZip from "jszip";
 import { buildDocumentFactCandidates } from "@/lib/document-facts";
-import { extractPdfTextLayer, loadPdfDocument, ocrPdfRasterPages } from "@/lib/pdf-raster-ocr";
+import { extractPdfTextLayer, loadPdfDocument, ocrImageBuffer, ocrPdfRasterPages } from "@/lib/pdf-raster-ocr";
 
 export class DocumentIntakeError extends Error {
   constructor(message: string) {
@@ -75,59 +74,6 @@ async function extractPdfEmbeddedText(content: Buffer): Promise<string> {
   return extractPdfTextLayer(doc);
 }
 
-function resolveLang(language: string | null | undefined): string {
-  const l = language?.trim();
-  if (!l) return "ben+eng";
-  const low = l.toLowerCase();
-  if (low === "en" || low === "english") return "eng";
-  if (low === "bn" || low === "ben" || low === "bengali") return "ben";
-  return l;
-}
-
-async function runImageOcr(
-  buf: Buffer,
-  languageHint: string | null | undefined,
-): Promise<{ text: string; warnings: string[]; ocr_provenance: Record<string, unknown> }> {
-  const resolvedLang = resolveLang(languageHint);
-  let confidence = 0;
-  try {
-    const worker = await createWorker(resolvedLang);
-
-    try {
-      const {
-        data: { text: rawText, confidence: conf },
-      } = await worker.recognize(buf);
-      confidence = typeof conf === "number" ? conf / 100 : 0;
-      const normalized = normalizeIntakeText(rawText ?? "").trim();
-      const prov: Record<string, unknown> = {
-        schema_version: "ocr_intake.v1",
-        engine: "tesseract.js",
-        language: resolvedLang,
-        language_source: languageHint ? "explicit" : "default_ben_eng",
-        status: normalized ? "text_extracted_candidate_only" : "no_text_detected",
-        candidate_evidence_only: true,
-        support_ceiling: "ambiguous",
-        review_required: true,
-        ocr_quality_score: Math.min(Math.max(Number(confidence.toFixed(4)), 0), 1),
-        deployment_note:
-          "Vercel WASM path (tesseract.js). For PyMuPDF+native Tesseract parity, deploy scripts/veridyn-ocr-service Docker.",
-      };
-      const warnings = normalized
-        ? ["OCR text is candidate evidence only until reviewed or validated."]
-        : ["OCR ran but did not detect readable text in this scan."];
-      if (detectBengaliScript(normalized)) {
-        prov.bengali_ocr_attempted = true;
-      }
-      return { text: normalized, warnings, ocr_provenance: prov };
-    } finally {
-      await worker.terminate();
-    }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new DocumentIntakeError(`OCR engine failed: ${msg}`);
-  }
-}
-
 export async function extractDocumentPayload(
   filename: string,
   content: Buffer,
@@ -183,16 +129,21 @@ export async function extractDocumentPayload(
       );
       ocrProvenance = {
         schema_version: "pdf_text_intake.v1",
-        engine: "pdf-parse",
+        engine: "pdfjs-dist",
         status: "text_layer_candidate_only",
       };
     }
   } else {
     intakeKind = "image_scan";
-    const img = await runImageOcr(content, languageHint);
-    text = img.text;
-    warnings.push(...img.warnings);
-    ocrProvenance = img.ocr_provenance;
+    try {
+      const img = await ocrImageBuffer(content, languageHint);
+      text = img.text;
+      warnings.push(...img.warnings);
+      ocrProvenance = img.ocr_provenance;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new DocumentIntakeError(`OCR engine failed: ${msg}`);
+    }
   }
 
   const normalized = normalizeIntakeText(text).replace(/\s+/g, " ").trim();
