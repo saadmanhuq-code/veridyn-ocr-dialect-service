@@ -10,7 +10,11 @@ Standalone **Next.js** deployment for autonomous document OCR (**not mocked** �
 | **`/lab`** | Legacy path — **307/redirect to `/`** (everything lives on one page). |
 | **Private APIs** | `POST /api/documents/extract` (multipart file) · `POST /api/dialect/analyze` JSON body `{ "text": "…" }` · `GET /api/health`. |
 
-Consumers (`protein-chain-bd`, future `bangla-decision-agent`, etc.) mount **`VERIDYN_OCR_URL`** and call **`/api/documents/extract`** on every document upload server-side — **automatic OCR backbone** independent of optional dialect UX.
+Consumer adoption is product-specific. Products should mount their documented
+OCR base URL env (`VERIDYN_OCR_URL` or product-specific equivalent) and route
+server-side upload flows through **`/api/documents/extract`** only where that
+product's adapter is wired and proven. Do not infer that every named consumer
+calls this service on every upload; record each product's live proof separately.
 
 ---
 
@@ -28,7 +32,25 @@ The PCBD/adapters **`extractViaVeridyn`** resolves the POST URL safely so env mi
 Recommended for this service: **`https://veridyn-ocr-dialect-service.vercel.app/api`**  
 (also accepts bare host — both resolve correctly.)
 
-Mirror **`VERIDYN_OCR_API_KEY`** server-side where used; callers send **`Authorization: Bearer …`** only when configured.
+Mirror the active bearer key server-side where used. This service accepts
+**`VERIDYN_OCR_API_KEY`** and **`VERIDYN_OCR_API_KEY_NEXT`**; callers send
+**`Authorization: Bearer ...`** only when the service is configured to require a
+key. During rotation, set `_NEXT`, update consumers to send it, then promote it
+to the primary key after all consumers are cut over.
+
+---
+
+## Auth and rotation contract
+
+- If neither `VERIDYN_OCR_API_KEY` nor `VERIDYN_OCR_API_KEY_NEXT` is configured
+  on the service, extraction requests are unauthenticated.
+- If either key is configured, extraction requests must send an exact bearer
+  token match for the current or next key.
+- Do not treat an unauthenticated smoke test as authenticated provider proof.
+  Authenticated proof requires the service and consumer to use matching server
+  side keys.
+- Keep real key values in the secure operator stash or deployment secrets, never
+  in git.
 
 ---
 

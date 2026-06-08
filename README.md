@@ -31,4 +31,9 @@ $env:VERCEL_TOKEN="<from salts file>"
 npx vercel deploy --prod --yes
 ```
 
-Production: configure optional `VERIDYN_OCR_API_KEY` match on consumers; optionally `OCR_CORS_ORIGIN` for tightening CORS (default `*`).
+Production: canonical deployment is `https://veridyn-ocr-dialect-service.vercel.app`.
+Bearer auth is optional: when the service has `VERIDYN_OCR_API_KEY` and/or
+`VERIDYN_OCR_API_KEY_NEXT` configured, consumers must send `Authorization:
+Bearer <matching key>`. Use the `_NEXT` key for staged rotation, then promote it
+after all consumers are updated. `OCR_CORS_ORIGIN` can tighten browser CORS
+(default `*`); server-to-server consumers do not rely on CORS.
