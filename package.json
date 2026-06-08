@@ -6,8 +6,9 @@
     "dev": "next dev -p 3333",
     "build": "next build",
     "start": "next start -p 3333",
-    "lint": "next lint",
-    "smoke": "node scripts/smoke.mjs"
+    "lint": "tsc --noEmit",
+    "smoke": "node scripts/smoke.mjs",
+    "test": "node --import tsx --test \"lib/**/*.test.ts\""
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.67",
