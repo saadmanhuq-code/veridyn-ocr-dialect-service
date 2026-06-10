@@ -36,7 +36,7 @@ import { corsHeaders } from "@/lib/cors";
 import { transcribeViaBest } from "@/lib/audio-stt";
 import { normaliseBn, tagScriptMix } from "@/lib/bn-normalize";
 import { resolveDialectFromText } from "@/lib/dialect-classifier";
-import { appendCorpusEvent, contentHash } from "@/lib/corpus-log";
+import { appendCorpusEvent, contentHash, dialectCorpusFields } from "@/lib/corpus-log";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -181,8 +181,7 @@ export async function POST(req: NextRequest) {
     audio_sha256: contentHash(audioBytes),
     transcript: transcriptBn,
     language,
-    dialect_label: dialect.dialect_label,
-    dialect_match_score: dialect.match_score,
+    ...dialectCorpusFields(dialect),
     product,
     region,
     stt_provider: result.provider,
