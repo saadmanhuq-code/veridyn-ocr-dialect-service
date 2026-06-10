@@ -23,6 +23,17 @@ type DialectEvidence = {
   candidate_label?: string | null;
   source?: string;
 };
+type PhraseEvalResult = {
+  phrase: string;
+  characters: number;
+  normalized: string;
+  evidence: DialectEvidence;
+};
+type PhraseEvalResponse = {
+  schema_version: string;
+  suggestion_floor: number;
+  results: PhraseEvalResult[];
+};
 
 /** Primary surface: dialect lab UX with document OCR feeding the transcript (`factory-VERIDYN` styling cues). */
 export default function DialectLabHomePage() {
@@ -38,6 +49,40 @@ export default function DialectLabHomePage() {
   const [dialectEvidence, setDialectEvidence] = useState<DialectEvidence | null>(null);
   const [errExtract, setErrExtract] = useState<string | null>(null);
   const [errDialect, setErrDialect] = useState<string | null>(null);
+
+  // Batch phrase-eval panel state
+  const [batchInput, setBatchInput] = useState<string>("");
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchResult, setBatchResult] = useState<PhraseEvalResponse | null>(null);
+  const [errBatch, setErrBatch] = useState<string | null>(null);
+
+  const runBatchEval = useCallback(async () => {
+    const lines = batchInput
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    setBatchBusy(true);
+    setErrBatch(null);
+    setBatchResult(null);
+    try {
+      const res = await fetch("/api/phrase-eval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phrases: lines }),
+      });
+      const data = (await res.json().catch(() => ({}))) as PhraseEvalResponse & { detail?: string };
+      if (!res.ok) {
+        setErrBatch(typeof data.detail === "string" ? data.detail : `HTTP ${res.status}`);
+        return;
+      }
+      setBatchResult(data);
+    } catch (e) {
+      setErrBatch(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBatchBusy(false);
+    }
+  }, [batchInput]);
 
   const analyze = useCallback(async (inputText: string) => {
     setDialectBusy(true);
@@ -351,9 +396,99 @@ export default function DialectLabHomePage() {
           </section>
         </div>
 
+        {/* ── Batch phrase-eval panel ─────────────────────────── */}
+        <section className="panel panel-primary lab-section" id="phrase-eval-batch">
+          <div className="panel-head">
+            <h2>③ Batch phrase-eval (POST /api/phrase-eval)</h2>
+            <span className="panel-badge ok">API live</span>
+          </div>
+          <p className="meta-line">
+            Enter one phrase per line (up to 50). Returns dialect cue inference for each.
+            DataRoom, BDA, and Agentic consume this endpoint for bulk document dialect scoring.
+          </p>
+          <div className="field">
+            <label htmlFor="batch-phrases">Phrases (one per line)</label>
+            <textarea
+              id="batch-phrases"
+              className="bangla textarea-lg"
+              rows={5}
+              placeholder={"আপনি কেমন আছেন?\nহেঁটে যাই\nকী করবা?"}
+              value={batchInput}
+              onChange={(e) => setBatchInput(e.target.value)}
+              disabled={batchBusy}
+            />
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={batchBusy || !batchInput.trim()}
+            onClick={() => void runBatchEval()}
+          >
+            {batchBusy ? "Evaluating…" : "Run batch eval (POST /api/phrase-eval)"}
+          </button>
+
+          {errBatch ? (
+            <div className="panel panel-error ocr-inline-error">
+              <strong>Batch eval failed</strong>
+              <pre>{errBatch}</pre>
+            </div>
+          ) : null}
+
+          {batchResult ? (
+            <div className="ocr-mini-results">
+              <p className="meta-line meta-ok">
+                {batchResult.results.length} phrase{batchResult.results.length !== 1 ? "s" : ""} evaluated ·
+                schema <code>{batchResult.schema_version}</code> · suggestion floor{" "}
+                <code>{batchResult.suggestion_floor}</code>
+              </p>
+              <div className="facts-table-wrap">
+                <table className="facts-table">
+                  <thead>
+                    <tr>
+                      <th>Phrase</th>
+                      <th>Chars</th>
+                      <th>Status</th>
+                      <th>Dialect</th>
+                      <th>Region</th>
+                      <th>Score</th>
+                      <th>Matched cue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {batchResult.results.map((r, i) => (
+                      <tr key={`${i}:${r.phrase}`}>
+                        <td className="bangla">{r.phrase.slice(0, 60)}{r.phrase.length > 60 ? "…" : ""}</td>
+                        <td>{r.characters}</td>
+                        <td>
+                          <span className={`pill pill-${r.evidence.status ?? "unknown"}`}>
+                            {r.evidence.status ?? "—"}
+                          </span>
+                        </td>
+                        <td>{r.evidence.dialect_label ?? "—"}</td>
+                        <td>{r.evidence.speaker_region ?? "—"}</td>
+                        <td>
+                          {r.evidence.match_score != null
+                            ? `${Math.round(Number(r.evidence.match_score) * 100)}%`
+                            : "—"}
+                        </td>
+                        <td>{r.evidence.candidate_label ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <details>
+                <summary>Raw JSON response</summary>
+                <pre>{JSON.stringify(batchResult, null, 2)}</pre>
+              </details>
+            </div>
+          ) : null}
+        </section>
+
         <footer>
           Integration endpoints: <code>GET /api/health</code> · <code>POST /api/documents/extract</code> ·{" "}
-          <code>POST /api/dialect/analyze</code> · Operators: repo <code>docs/OCR_DIALECT_SERVICE.md</code>.
+          <code>POST /api/dialect/analyze</code> · <code>POST /api/phrase-eval</code> ·{" "}
+          <code>POST /api/facts/extract</code> · Operators: repo <code>docs/OCR_DIALECT_SERVICE.md</code>.
         </footer>
       </main>
     </>
