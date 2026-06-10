@@ -37,11 +37,29 @@ export function dialectCueCatalog(): DialectCandidate[] {
       source: "phrase_chip",
     },
     {
+      // RegSpeech12 Sylhet sample — resolves sylhet-long
+      phrase:
+        "তে খইনছাইন আফনের দিনখান, দিনখাল কিলাখান যায় তে? বালা যার, বাক্কা বালা যার, আফনার কিতা অবস্থা?",
+      dialect_label: "sylhet",
+      speaker_region: "Sylhet",
+      candidate_label: "RegSpeech12 Sylhet sample",
+      source: "sample_catalog",
+    },
+    {
       phrase: "আমি বরিশালে থাকি",
       dialect_label: "barishal",
       speaker_region: "Barishal",
       candidate_label: "Barishal",
       source: "phrase_chip",
+    },
+    {
+      // RegSpeech12 Barishal sample — resolves barishal-long
+      phrase:
+        "আসসালামু আলাইকুম, আমার নাম হাসিবুর রহমান শুব, ডিপারমেন্ট অব সপটোওয়্যার ইনজিনারিং, ফাস্ট সেমিস্টার, ব্যাচ নাম্বার ফোরটি। আমি ড্যাফোডিল ইন্টারন্যাশনাল ইউনিবার্সিটিতে পড়াশুনা করতেছি। আর আমার হোম টাউন হচ্ছে হলো বরিশালে।",
+      dialect_label: "barishal",
+      speaker_region: "Barishal",
+      candidate_label: "RegSpeech12 Barishal sample",
+      source: "sample_catalog",
     },
     {
       phrase: "আমি চট্টগ্রামের মানুষ",
@@ -72,6 +90,31 @@ export function dialectCueCatalog(): DialectCandidate[] {
       speaker_region: "Chittagong",
       candidate_label: "RegSpeech12 Chittagong sample",
       source: "sample_catalog",
+    },
+    {
+      // RegSpeech12 Rangpur sample
+      phrase: "সুমন তারপর হইলো রানা, তারপর জসিম, জাকারিয়া এরা কয়েকঝনের নাম দিছলাম ওটে।",
+      dialect_label: "rangpur",
+      speaker_region: "Rangpur",
+      candidate_label: "RegSpeech12 Rangpur sample",
+      source: "sample_catalog",
+    },
+    {
+      // RegSpeech12 Sandwip sample
+      phrase:
+        "আইচ্ছা। আমনেরা এনজিও সম্পর্কে কিছু জানেন নে? জানি। তো এনজিও, টাকা লই না, আইচ্ছা, হিয়াল্লাই জানি, আইচ্ছা।",
+      dialect_label: "sandwip",
+      speaker_region: "Sandwip",
+      candidate_label: "RegSpeech12 Sandwip sample",
+      source: "sample_catalog",
+    },
+    {
+      // Standard Dhaka / মান-বাংলা cue
+      phrase: "আমি ঢাকায় থাকি, এখানে অনেক মানুষ।",
+      dialect_label: "dhaka",
+      speaker_region: "Dhaka",
+      candidate_label: "Dhaka standard",
+      source: "phrase_chip",
     },
   ];
 }

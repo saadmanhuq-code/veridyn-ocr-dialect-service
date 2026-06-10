@@ -5,6 +5,8 @@ import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from "pdfjs-d
 import { recognizeBufferTesseract } from "@/lib/ocr-engine";
 import { isGeminiVisionEnabled, isOpenRouterVisionEnabled, ocrImageViaBestVision } from "@/lib/vision-ocr";
 
+const VISION_ENGINES = new Set(["gemini_vision", "openrouter_vision"]);
+
 const MAX_OCR_PAGES = 2;
 const RENDER_SCALE = 2;
 const MAX_OCR_WIDTH = 1200;
@@ -139,6 +141,9 @@ export async function ocrPdfRasterPages(
       candidate_evidence_only: true,
       review_required: true,
       ocr_quality_score: Math.min(Math.max(Number(meanConfidence.toFixed(4)), 0), 1),
+      ...(VISION_ENGINES.has(engineUsed)
+        ? { confidence_note: "estimated — character-level heuristic proxy, not a calibrated OCR confidence score" }
+        : {}),
     },
   };
 }
@@ -166,6 +171,9 @@ export async function ocrImageBuffer(
       support_ceiling: "ambiguous",
       review_required: true,
       ocr_quality_score: Math.min(Math.max(Number(confidence.toFixed(4)), 0), 1),
+      ...(VISION_ENGINES.has(engine)
+        ? { confidence_note: "estimated — character-level heuristic proxy, not a calibrated OCR confidence score" }
+        : {}),
     },
   };
 }
