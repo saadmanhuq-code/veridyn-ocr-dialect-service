@@ -39,12 +39,24 @@ async function ocrImageViaGeminiStudio(
     throw new Error(`Gemini vision HTTP ${res.status}: ${detail.slice(0, 200)}`);
   }
   const data = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
+      safetyRatings?: Array<{ blocked?: boolean }>;
+    }>;
   };
-  const text = (data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("\n") ?? "")
+  const candidate = data.candidates?.[0];
+  const text = (candidate?.content?.parts?.map((p) => p.text ?? "").join("\n") ?? "")
     .replace(/\s+/g, " ")
     .trim();
-  return { text, confidence: text ? 0.87 : 0.1 };
+  // estimated_confidence: heuristic proxy — not a calibrated OCR score.
+  // Penalise safety blocks and empty output; scale by non-whitespace character ratio.
+  const blocked = candidate?.safetyRatings?.some((r) => r.blocked) ?? false;
+  const finishedNormally =
+    !candidate?.finishReason || candidate.finishReason === "STOP";
+  const charRatio = text.length > 0 ? Math.min(1, text.replace(/\s/g, "").length / text.length + 0.5) : 0;
+  const estimatedConfidence = blocked || !finishedNormally ? 0.1 : text ? Math.round(charRatio * 100) / 100 : 0.1;
+  return { text, confidence: estimatedConfidence };
 }
 
 export async function ocrImageViaOpenRouter(
@@ -117,7 +129,11 @@ export async function ocrImageViaOpenRouter(
       .join("\n");
   }
   text = text.replace(/\s+/g, " ").trim();
-  return { text, confidence: text ? 0.88 : 0.1 };
+  // estimated_confidence: heuristic proxy — not a calibrated OCR score.
+  // Scale by non-whitespace character ratio; 0.1 for empty output.
+  const charRatioOR = text.length > 0 ? Math.min(1, text.replace(/\s/g, "").length / text.length + 0.5) : 0;
+  const estimatedConfidenceOR = text ? Math.round(charRatioOR * 100) / 100 : 0.1;
+  return { text, confidence: estimatedConfidenceOR };
 }
 
 export function isOpenRouterVisionEnabled(): boolean {
