@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           detail:
-            "Image intent unavailable on Vercel — no vision API keys configured. Set GOOGLE_AI_STUDIO_KEY or OPENROUTER_API_KEY.",
+            "Image intent unavailable on Vercel — no vision API keys configured. Set GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_AI_STUDIO_KEY or OPENROUTER_API_KEY.",
           vision_keys_required: true,
         },
         { status: 503, headers: corsHeaders() },

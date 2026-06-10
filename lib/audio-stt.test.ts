@@ -72,10 +72,12 @@ describe("transcribeViaBest fallback", () => {
     const savedStudio = process.env.GOOGLE_AI_STUDIO_KEY;
     const savedCloudVision = process.env.GOOGLE_CLOUD_VISION_API_KEY;
     const savedOpenRouter = process.env.OPENROUTER_API_KEY;
+    const savedVertex = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
     delete process.env.GEMINI_API_KEY;
     delete process.env.GOOGLE_AI_STUDIO_KEY;
     delete process.env.GOOGLE_CLOUD_VISION_API_KEY;
     delete process.env.OPENROUTER_API_KEY;
+    delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
     try {
       // Use a tiny dummy buffer — it won't be sent anywhere without a key
@@ -87,6 +89,7 @@ describe("transcribeViaBest fallback", () => {
       if (savedStudio !== undefined) process.env.GOOGLE_AI_STUDIO_KEY = savedStudio;
       if (savedCloudVision !== undefined) process.env.GOOGLE_CLOUD_VISION_API_KEY = savedCloudVision;
       if (savedOpenRouter !== undefined) process.env.OPENROUTER_API_KEY = savedOpenRouter;
+      if (savedVertex !== undefined) process.env.GOOGLE_SERVICE_ACCOUNT_JSON = savedVertex;
     }
   });
 });

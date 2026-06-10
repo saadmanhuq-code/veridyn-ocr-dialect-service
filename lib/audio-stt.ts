@@ -1,9 +1,9 @@
 /**
  * Audio Speech-to-Text — Veridyn OCR Dialect Service.
  *
- * PRIMARY:  Gemini generateContent, audio inline_data (identical call shape to
- *           ocrImageViaGeminiStudio in lib/vision-ocr.ts).
- * FALLBACK: OpenRouter google/gemini-2.5-flash with input_audio content part.
+ * PRIMARY:  Vertex Gemini generateContent, audio inline_data.
+ * FALLBACK: Gemini AI Studio, then OpenRouter google/gemini-2.5-flash
+ *           with input_audio content part.
  *           EXPERIMENTAL — OpenRouter audio-input is model-dependent and
  *           unproven in this stack. Marked accordingly; drop if smoke fails.
  *
@@ -12,9 +12,12 @@
  *
  * Env:
  *   VERIDYN_STT_MODEL         — Gemini STT model (default "gemini-2.0-flash")
+ *   GOOGLE_SERVICE_ACCOUNT_JSON + VERTEX_PROJECT/VERTEX_LOCATION/VERTEX_MODEL
  *   GOOGLE_AI_STUDIO_KEY | GEMINI_API_KEY | GOOGLE_CLOUD_VISION_API_KEY
  *   OPENROUTER_API_KEY
  */
+
+import { generateViaVertex, isVertexGeminiEnabled } from "./vertex-gemini";
 
 export interface SttResult {
   transcript: string;
@@ -52,6 +55,40 @@ export function isGeminiSttEnabled(): boolean {
 
 export function isOpenRouterSttEnabled(): boolean {
   return openRouterApiKey() !== null;
+}
+
+export function isVertexSttEnabled(): boolean {
+  return isVertexGeminiEnabled();
+}
+
+// ---------------------------------------------------------------------------
+// PRIMARY: Vertex Gemini inline_data STT
+// ---------------------------------------------------------------------------
+
+export async function transcribeViaVertex(
+  audioBytes: Buffer,
+  mimeType: string,
+): Promise<SttResult> {
+  const b64 = audioBytes.toString("base64");
+  const { data, model, latency_ms } = await generateViaVertex([
+    {
+      text: "Transcribe all speech in this audio exactly as spoken. Return only the raw transcript text — no commentary, no timestamps, no speaker labels. Preserve Bengali script as-is.",
+    },
+    { inline_data: { mime_type: mimeType, data: b64 } },
+  ]);
+
+  const transcript = (
+    data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join(" ") ?? ""
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return {
+    transcript,
+    provider: "vertex",
+    model,
+    latency_ms,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +245,7 @@ export async function transcribeViaOpenRouter(
 /**
  * Attempt STT with the best available provider.
  *
- * Priority: Gemini → OpenRouter (experimental) → { fallback: true }
+ * Priority: Vertex → Gemini → OpenRouter (experimental) → { fallback: true }
  *
  * Never throws on missing vendor. Returns { fallback: true } when no key is
  * reachable, matching Khep's exact degradation contract.
@@ -218,6 +255,14 @@ export async function transcribeViaBest(
   mimeType: string,
 ): Promise<SttOutcome> {
   const errors: string[] = [];
+
+  if (isVertexSttEnabled()) {
+    try {
+      return await transcribeViaVertex(audioBytes, mimeType);
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   if (isGeminiSttEnabled()) {
     try {
