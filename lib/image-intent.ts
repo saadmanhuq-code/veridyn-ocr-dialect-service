@@ -1,16 +1,18 @@
 /**
- * Image intent analysis — wraps ocrImageViaBestVision with an intent prompt.
+ * Image intent analysis — uses the same Vertex → Gemini → OpenRouter priority
+ * as the best-vision dispatcher, with an intent-specific prompt.
  *
- * Reuses the existing Gemini → OpenRouter dispatcher from lib/vision-ocr.ts.
+ * Mirrors the vision provider availability checks from lib/vision-ocr.ts.
  * Returns structured JSON describing what the image shows / what is wanted.
- * Model: VERIDYN_IMAGE_INTENT_MODEL (default "gemini-2.0-flash").
+ * Model: VERTEX_MODEL for Vertex; VERIDYN_IMAGE_INTENT_MODEL for AI Studio.
  *
  * One JSON-repair retry on malformed model output before returning null.
  *
  * Response schema: image_intent.v1
  */
 
-import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
+import { generateViaVertex, isVertexGeminiEnabled } from "./vertex-gemini";
+import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "./vision-ocr";
 
 export interface ImageIntentResult {
   object_label: string;
@@ -166,6 +168,29 @@ async function intentViaGemini(imageBytes: Buffer): Promise<ImageIntentResult> {
   return coerceResult(parsed, "gemini", model, Date.now() - t0);
 }
 
+async function intentViaVertex(imageBytes: Buffer): Promise<ImageIntentResult> {
+  const b64 = imageBytes.toString("base64");
+  const mime = mimeFromBuffer(imageBytes);
+  const { data, model, latency_ms } = await generateViaVertex(
+    [
+      { text: INTENT_PROMPT },
+      { inline_data: { mime_type: mime, data: b64 } },
+    ],
+    { generationConfig: { temperature: 0, responseMimeType: "application/json" } },
+  );
+
+  const raw = (
+    data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? ""
+  ).trim();
+
+  const parsed = parseJsonField(raw);
+  if (!parsed) {
+    throw new Error(`Vertex intent: could not parse JSON from response: ${raw.slice(0, 200)}`);
+  }
+
+  return coerceResult(parsed, "vertex", model, latency_ms);
+}
+
 async function intentViaOpenRouter(imageBytes: Buffer): Promise<ImageIntentResult> {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
@@ -225,13 +250,21 @@ async function intentViaOpenRouter(imageBytes: Buffer): Promise<ImageIntentResul
 
 /**
  * Analyse image intent via best available provider.
- * Gemini → OpenRouter. Never throws on missing vendor — returns null + provenance
- * with provider "none" when no key is available.
+ * Vertex → Gemini → OpenRouter. Never throws on missing vendor — returns null
+ * when no key is available.
  */
 export async function analyzeImageIntent(
   imageBytes: Buffer,
 ): Promise<ImageIntentResult | null> {
   const errors: string[] = [];
+
+  if (isVertexGeminiEnabled()) {
+    try {
+      return await intentViaVertex(imageBytes);
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   if (isGeminiVisionEnabled()) {
     try {

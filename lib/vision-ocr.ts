@@ -1,9 +1,39 @@
-/** Fast image OCR on Vercel — OpenRouter / Gemini / Cloud Vision; local dev uses tesseract. */
+/** Fast image OCR on Vercel — Vertex / Gemini / OpenRouter / Cloud Vision; local dev uses tesseract. */
+
+import { generateViaVertex, isVertexGeminiEnabled } from "./vertex-gemini";
 
 function mimeFromBuffer(buf: Buffer): string {
   if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
   if (buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
   return "image/png";
+}
+
+function estimatedConfidenceFromVertexCandidate(
+  text: string,
+  candidate: { finishReason?: string; safetyRatings?: Array<{ blocked?: boolean }> } | undefined,
+): number {
+  const blocked = candidate?.safetyRatings?.some((r) => r.blocked) ?? false;
+  const finishedNormally =
+    !candidate?.finishReason || candidate.finishReason === "STOP";
+  const charRatio = text.length > 0 ? Math.min(1, text.replace(/\s/g, "").length / text.length + 0.5) : 0;
+  return blocked || !finishedNormally ? 0.1 : text ? Math.round(charRatio * 100) / 100 : 0.1;
+}
+
+export async function ocrImageViaVertex(
+  imageBytes: Buffer,
+): Promise<{ text: string; confidence: number }> {
+  const b64 = imageBytes.toString("base64");
+  const mime = mimeFromBuffer(imageBytes);
+  const { data } = await generateViaVertex([
+    { text: "Extract every line of text from this trade licence or certificate. Return plain text only." },
+    { inline_data: { mime_type: mime, data: b64 } },
+  ]);
+
+  const candidate = data.candidates?.[0];
+  const text = (candidate?.content?.parts?.map((p) => p.text ?? "").join("\n") ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { text, confidence: estimatedConfidenceFromVertexCandidate(text, candidate) };
 }
 
 async function ocrImageViaGeminiStudio(
@@ -51,12 +81,7 @@ async function ocrImageViaGeminiStudio(
     .trim();
   // estimated_confidence: heuristic proxy — not a calibrated OCR score.
   // Penalise safety blocks and empty output; scale by non-whitespace character ratio.
-  const blocked = candidate?.safetyRatings?.some((r) => r.blocked) ?? false;
-  const finishedNormally =
-    !candidate?.finishReason || candidate.finishReason === "STOP";
-  const charRatio = text.length > 0 ? Math.min(1, text.replace(/\s/g, "").length / text.length + 0.5) : 0;
-  const estimatedConfidence = blocked || !finishedNormally ? 0.1 : text ? Math.round(charRatio * 100) / 100 : 0.1;
-  return { text, confidence: estimatedConfidence };
+  return { text, confidence: estimatedConfidenceFromVertexCandidate(text, candidate) };
 }
 
 export async function ocrImageViaOpenRouter(
@@ -140,6 +165,10 @@ export function isOpenRouterVisionEnabled(): boolean {
   return Boolean(process.env.OPENROUTER_API_KEY?.trim());
 }
 
+export function isVertexVisionEnabled(): boolean {
+  return isVertexGeminiEnabled();
+}
+
 export function isGeminiVisionEnabled(): boolean {
   return Boolean(
     process.env.GOOGLE_AI_STUDIO_KEY?.trim() ||
@@ -153,6 +182,14 @@ export async function ocrImageViaBestVision(
   languageHint: string | null | undefined,
 ): Promise<{ text: string; confidence: number; engine: string }> {
   const errors: string[] = [];
+  if (isVertexVisionEnabled()) {
+    try {
+      const v = await ocrImageViaVertex(imageBytes);
+      return { ...v, engine: "vertex_vision" };
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
   if (isGeminiVisionEnabled()) {
     try {
       const g = await ocrImageViaGeminiStudio(imageBytes);
@@ -171,7 +208,7 @@ export async function ocrImageViaBestVision(
   }
   if (process.env.VERCEL) {
     throw new Error(
-      `Image OCR unavailable on Vercel (${errors.join("; ") || "no vision API keys"}). Set GOOGLE_AI_STUDIO_KEY or OPENROUTER_API_KEY with credits.`,
+      `Image OCR unavailable on Vercel (${errors.join("; ") || "no vision API keys"}). Set GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_AI_STUDIO_KEY or OPENROUTER_API_KEY with credits.`,
     );
   }
   throw new Error(errors.join("; ") || "No vision OCR provider configured");
