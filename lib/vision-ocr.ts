@@ -143,7 +143,8 @@ export function isOpenRouterVisionEnabled(): boolean {
 export function isGeminiVisionEnabled(): boolean {
   return Boolean(
     process.env.GOOGLE_AI_STUDIO_KEY?.trim() ||
-      process.env.GEMINI_API_KEY?.trim(),
+      process.env.GEMINI_API_KEY?.trim() ||
+      process.env.GOOGLE_CLOUD_VISION_API_KEY?.trim(),
   );
 }
 
