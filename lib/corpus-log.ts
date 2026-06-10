@@ -18,6 +18,8 @@
 
 import { createHash } from "node:crypto";
 
+import type { DialectClassifierStatus, DialectInference, DialectResolutionMethod } from "./dialect";
+
 export interface CorpusEvent {
   schema_version: "corpus_event.v1";
   ts: string; // ISO-8601
@@ -28,6 +30,9 @@ export interface CorpusEvent {
   language?: string;
   dialect_label?: string | null;
   dialect_match_score?: number | null;
+  method?: DialectResolutionMethod | null;
+  classifier_status?: DialectClassifierStatus | null;
+  classifier_confidence?: number | null;
   product?: string; // calling product tag
   region?: string; // optional user-declared region
   stt_provider?: string;
@@ -41,6 +46,19 @@ function isCorpusLogEnabled(): boolean {
 
 function sha256hex(buf: Buffer): string {
   return createHash("sha256").update(buf).digest("hex");
+}
+
+export function dialectCorpusFields(dialect: DialectInference): Pick<
+  CorpusEvent,
+  "dialect_label" | "dialect_match_score" | "method" | "classifier_status" | "classifier_confidence"
+> {
+  return {
+    dialect_label: dialect.dialect_label,
+    dialect_match_score: dialect.match_score,
+    method: dialect.method ?? null,
+    classifier_status: dialect.classifier_status ?? null,
+    classifier_confidence: dialect.classifier_confidence ?? null,
+  };
 }
 
 /**

@@ -16,7 +16,7 @@
  *     transcript_raw: string,
  *     transcript_bn: string,        // normalised (bn digits → ASCII, danda → period)
  *     language: "bn" | "en" | "mixed" | "unknown",
- *     dialect: DialectInference,
+ *     dialect: DialectInference,    // includes optional classifier/cue corroboration metadata
  *     stt_provenance: { provider: string, model: string, latency_ms: number },
  *     fallback: false
  *   }
@@ -35,8 +35,8 @@ import { requireApiKey } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { transcribeViaBest } from "@/lib/audio-stt";
 import { normaliseBn, tagScriptMix } from "@/lib/bn-normalize";
-import { inferDialectFromText } from "@/lib/dialect";
-import { appendCorpusEvent, contentHash } from "@/lib/corpus-log";
+import { resolveDialectFromText } from "@/lib/dialect-classifier";
+import { appendCorpusEvent, contentHash, dialectCorpusFields } from "@/lib/corpus-log";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
   const transcriptRaw = result.transcript;
   const transcriptBn = normaliseBn(transcriptRaw);
   const language = tagScriptMix(transcriptBn);
-  const dialect = inferDialectFromText(transcriptBn);
+  const dialect = await resolveDialectFromText(transcriptBn);
 
   // --- Corpus log (fire-and-forget) ---
   appendCorpusEvent({
@@ -181,8 +181,7 @@ export async function POST(req: NextRequest) {
     audio_sha256: contentHash(audioBytes),
     transcript: transcriptBn,
     language,
-    dialect_label: dialect.dialect_label,
-    dialect_match_score: dialect.match_score,
+    ...dialectCorpusFields(dialect),
     product,
     region,
     stt_provider: result.provider,

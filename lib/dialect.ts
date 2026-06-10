@@ -181,6 +181,39 @@ export type DialectInferenceStatus =
   | "suggested"
   | "provided";
 
+export type DialectResolutionMethod =
+  | "cue_match"
+  | "vertex_classifier"
+  | "combined";
+
+export type DialectClassifierStatus =
+  | "ok"
+  | "not_configured"
+  | "provider_error"
+  | "parse_error"
+  | "skipped_missing_transcript";
+
+export interface DialectCueMatchDetail {
+  status: DialectInferenceStatus;
+  source: string;
+  dialect_label: string | null;
+  speaker_region: string | null;
+  match_score: number | null;
+  candidate_label: string | null;
+  candidate_dialect_label?: string | null;
+}
+
+export interface DialectClassifierDetail {
+  status: DialectClassifierStatus;
+  dialect: string | null;
+  confidence: number | null;
+  cues: string[];
+  provider?: string;
+  model?: string;
+  latency_ms?: number;
+  error_type?: DialectClassifierStatus;
+}
+
 export interface DialectInference {
   status: DialectInferenceStatus;
   source: string;
@@ -188,6 +221,19 @@ export interface DialectInference {
   speaker_region: string | null;
   match_score: number | null;
   candidate_label: string | null;
+  candidate_dialect_label?: string | null;
+  method?: DialectResolutionMethod;
+  confidence?: number | null;
+  classifier_confidence?: number | null;
+  classifier_dialect?: string | null;
+  classifier_status?: DialectClassifierStatus;
+  cues?: string[];
+  resolve_threshold?: number;
+  detail?: {
+    agreement?: "agree" | "disagree" | "none";
+    classifier?: DialectClassifierDetail;
+    cue_match?: DialectCueMatchDetail;
+  };
 }
 
 /** Match OCR or ASR text against dialect cue phrases (cue-based "catcher"). */
@@ -201,6 +247,9 @@ export function inferDialectFromText(transcript: string): DialectInference {
       speaker_region: null,
       match_score: null,
       candidate_label: null,
+      candidate_dialect_label: null,
+      method: "cue_match",
+      confidence: null,
     };
   }
 
@@ -220,6 +269,9 @@ export function inferDialectFromText(transcript: string): DialectInference {
       speaker_region: null,
       match_score: best ? best.match_score : null,
       candidate_label: best ? best.candidate_label : null,
+      candidate_dialect_label: best ? best.dialect_label : null,
+      method: "cue_match",
+      confidence: best ? best.match_score : null,
     };
   }
 
@@ -230,5 +282,8 @@ export function inferDialectFromText(transcript: string): DialectInference {
     speaker_region: best.speaker_region,
     match_score: best.match_score,
     candidate_label: best.candidate_label,
+    candidate_dialect_label: best.dialect_label,
+    method: "cue_match",
+    confidence: best.match_score,
   };
 }

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { transcribeViaVertex } from "./audio-stt";
+import { resolveDialectFromText } from "./dialect-classifier";
 import { generateViaVertex } from "./vertex-gemini";
 
 const SKIP_LIVE_VERTEX = !process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim();
@@ -37,6 +38,19 @@ describe(
       assert.equal(result.model, process.env.VERTEX_MODEL?.trim() || "gemini-2.5-flash");
       assert.ok(result.latency_ms >= 0, "latency_ms must be non-negative");
       assert.ok(result.transcript.length > 0, "transcript must be non-empty");
+    });
+
+    test("dialect classifier resolves drift Sylheti through Vertex, not cue fallback", async () => {
+      const result = await resolveDialectFromText("আফনের কিতা খবর? আমি ভালা আছি, কাজকাম যাইতাছে.");
+
+      assert.equal(result.classifier_status, "ok");
+      assert.ok(
+        result.method === "vertex_classifier" || result.method === "combined",
+        `expected live classifier path, got ${result.method ?? "unknown"}`,
+      );
+      assert.notEqual(result.method, "cue_match");
+      assert.notEqual(result.classifier_status, "parse_error");
+      assert.notEqual(result.classifier_status, "provider_error");
     });
   },
 );
