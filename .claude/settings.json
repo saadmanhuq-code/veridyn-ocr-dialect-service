@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell",
+            "args": [
+              "-NoProfile",
+              "-ExecutionPolicy",
+              "Bypass",
+              "-File",
+              "C:\\Users\\saadm\\OPERATOR_OS\\scripts\\portfolio-truth.ps1",
+              "veridyn-ocr",
+              "-Fast"
+            ],
+            "timeout": 30,
+            "statusMessage": "context-memory: current truth"
+          }
+        ]
+      }
+    ]
+  }
+}
