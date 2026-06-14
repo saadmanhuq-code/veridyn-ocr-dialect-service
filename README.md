@@ -32,8 +32,10 @@ npx vercel deploy --prod --yes
 ```
 
 Production: canonical deployment is `https://veridyn-ocr-dialect-service.vercel.app`.
-Bearer auth is optional: when the service has `VERIDYN_OCR_API_KEY` and/or
-`VERIDYN_OCR_API_KEY_NEXT` configured, consumers must send `Authorization:
-Bearer <matching key>`. Use the `_NEXT` key for staged rotation, then promote it
-after all consumers are updated. `OCR_CORS_ORIGIN` can tighten browser CORS
-(default `*`); server-to-server consumers do not rely on CORS.
+Bearer auth is fail-closed by default. Configure `VERIDYN_OCR_API_KEY` and/or
+`VERIDYN_OCR_API_KEY_NEXT`; consumers must send `Authorization: Bearer <matching
+key>`. Use the `_NEXT` key for staged rotation, then promote it after all
+consumers are updated. If both keys are absent, protected OCR routes return 503.
+`VERIDYN_OCR_ALLOW_UNAUTHENTICATED=true` is honored only outside production for
+an explicit local/dev run. `OCR_CORS_ORIGIN` can tighten browser CORS; the default is the canonical
+production origin, not `*`. Server-to-server consumers do not rely on CORS.

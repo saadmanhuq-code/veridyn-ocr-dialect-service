@@ -18,9 +18,9 @@ export function OPTIONS() {
  * callers (DataRoom, BDA, Agentic) can skip the multipart upload path when
  * they already hold the transcript.
  *
- * Auth posture: identical to sibling routes — optional Bearer via
- * VERIDYN_OCR_API_KEY / VERIDYN_OCR_API_KEY_NEXT.  If neither env var is set,
- * auth is open (allow-all), matching the dev and staging posture.
+ * Auth posture: identical to sibling routes — Bearer via
+ * VERIDYN_OCR_API_KEY / VERIDYN_OCR_API_KEY_NEXT. If neither env var is set,
+ * auth fails closed in production.
  *
  * Request body (JSON):
  *   { "text": string }

@@ -2,7 +2,7 @@
 
 function allowOrigin(): string {
   const o = process.env.OCR_CORS_ORIGIN?.trim();
-  return o && o.length ? o : "*";
+  return o && o.length ? o : "https://veridyn-ocr-dialect-service.vercel.app";
 }
 
 export function corsHeaders(): Record<string, string> {
