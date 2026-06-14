@@ -37,9 +37,9 @@ Production: canonical deployment is `https://veridyn-ocr-dialect-service.vercel.
 `VERIDYN_OCR_API_KEY_NEXT` for staged rotation) on every deployed environment
 — production **and** preview. Consumers send `Authorization: Bearer <matching
 key>`. If no key is configured, deployed environments reject all API requests
-with `503 Service unavailable`; the allow-all bypass exists only in genuine
-local dev (not on Vercel, `NODE_ENV !== "production"`). Promote `_NEXT` after
-all consumers are updated.
+with `403 Forbidden`; the allow-all bypass exists only in genuine local dev
+(not on Vercel, `NODE_ENV !== "production"`). Promote `_NEXT` after all
+consumers are updated.
 
 **CORS fails closed.** `OCR_CORS_ORIGINS` (comma-separated allowlist) controls
 which browser origins may make cross-origin calls. A matching origin is

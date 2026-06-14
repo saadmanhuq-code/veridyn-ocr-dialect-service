@@ -55,11 +55,13 @@ export function requireApiKey(headers: Headers): NextResponse | null {
   // FAIL CLOSED: if no keys are configured, only local dev may pass through.
   // Any deployed environment (production or preview) is rejected so the service
   // never silently serves unauthenticated traffic when keys are missing.
+  // Reject with 403 (not 503): a missing-key config is a permanent "forbidden",
+  // not a transient outage, so well-behaved clients stop rather than retry-storm.
   if (accepted.length === 0) {
     if (authBypassAllowed()) return null;
     return NextResponse.json(
-      { detail: "Service unavailable: API key not configured." },
-      { status: 503 },
+      { detail: "Forbidden: API key not configured." },
+      { status: 403 },
     );
   }
 

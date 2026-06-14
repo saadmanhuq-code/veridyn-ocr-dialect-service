@@ -44,10 +44,11 @@ to the primary key after all consumers are cut over.
 
 - Auth **fails closed**. If neither `VERIDYN_OCR_API_KEY` nor
   `VERIDYN_OCR_API_KEY_NEXT` is configured, deployed environments (Vercel
-  production **and** preview) reject every request with `503 Service
-  unavailable`. The unauthenticated allow-all path exists only in genuine local
-  dev (not on Vercel and `NODE_ENV !== "production"`) so `npm run dev` and the
-  test suite stay zero-friction.
+  production **and** preview) reject every request with `403 Forbidden` (a
+  permanent config error, not a retryable outage). The unauthenticated allow-all
+  path exists only in genuine local dev (not on Vercel and
+  `NODE_ENV !== "production"`) so `npm run dev` and the test suite stay
+  zero-friction.
 - If either key is configured, extraction requests must send an exact bearer
   token match for the current or next key.
 - Do not treat an unauthenticated smoke test as authenticated provider proof.

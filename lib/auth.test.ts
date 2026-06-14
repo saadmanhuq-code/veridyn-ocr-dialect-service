@@ -98,18 +98,18 @@ test("both keys unset in local dev: auth is optional (allow-all)", () => {
   assert.equal(requireApiKey(reqWith("anything")), null);
 });
 
-test("both keys unset on Vercel (deployed): FAILS CLOSED with 503", () => {
+test("both keys unset on Vercel (deployed): FAILS CLOSED with 403", () => {
   process.env.VERCEL = "1"; // set on every Vercel deployment (prod and preview)
   const res = requireApiKey(reqWith(null));
   assert.notEqual(res, null);
-  assert.equal(res!.status, 503);
+  assert.equal(res!.status, 403);
 });
 
-test("both keys unset with NODE_ENV=production: FAILS CLOSED with 503", () => {
+test("both keys unset with NODE_ENV=production: FAILS CLOSED with 403", () => {
   setNodeEnv("production");
   const res = requireApiKey(reqWith("anything"));
   assert.notEqual(res, null);
-  assert.equal(res!.status, 503);
+  assert.equal(res!.status, 403);
 });
 
 test("both keys unset on Vercel preview (NODE_ENV=production): FAILS CLOSED", () => {
@@ -119,7 +119,7 @@ test("both keys unset on Vercel preview (NODE_ENV=production): FAILS CLOSED", ()
   setNodeEnv("production");
   const res = requireApiKey(reqWith(null));
   assert.notEqual(res, null);
-  assert.equal(res!.status, 503);
+  assert.equal(res!.status, 403);
 });
 
 test("key configured on Vercel: valid key still authorizes", () => {
