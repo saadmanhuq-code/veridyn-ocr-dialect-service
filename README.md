@@ -32,8 +32,19 @@ npx vercel deploy --prod --yes
 ```
 
 Production: canonical deployment is `https://veridyn-ocr-dialect-service.vercel.app`.
-Bearer auth is optional: when the service has `VERIDYN_OCR_API_KEY` and/or
-`VERIDYN_OCR_API_KEY_NEXT` configured, consumers must send `Authorization:
-Bearer <matching key>`. Use the `_NEXT` key for staged rotation, then promote it
-after all consumers are updated. `OCR_CORS_ORIGIN` can tighten browser CORS
-(default `*`); server-to-server consumers do not rely on CORS.
+
+**Bearer auth fails closed.** Set `VERIDYN_OCR_API_KEY` (and optionally
+`VERIDYN_OCR_API_KEY_NEXT` for staged rotation) on every deployed environment
+— production **and** preview. Consumers send `Authorization: Bearer <matching
+key>`. If no key is configured, deployed environments reject all API requests
+with `503 Service unavailable`; the allow-all bypass exists only in genuine
+local dev (not on Vercel, `NODE_ENV !== "production"`). Promote `_NEXT` after
+all consumers are updated.
+
+**CORS fails closed.** `OCR_CORS_ORIGINS` (comma-separated allowlist) controls
+which browser origins may make cross-origin calls. A matching origin is
+reflected into `Access-Control-Allow-Origin`; unlisted origins get no CORS
+grant. The default is **empty** (no cross-origin access) — there is no wildcard
+default. Set it to your real consumer origins (e.g. DataRoom / BDA / Agentic),
+or `*` only if you deliberately want any-origin browser access. Server-to-server
+consumers do not rely on CORS.

@@ -6,8 +6,8 @@ import { buildDocumentFactCandidates } from "@/lib/document-facts";
 
 export const runtime = "nodejs";
 
-export function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
 /**
@@ -18,9 +18,10 @@ export function OPTIONS() {
  * callers (DataRoom, BDA, Agentic) can skip the multipart upload path when
  * they already hold the transcript.
  *
- * Auth posture: identical to sibling routes — optional Bearer via
- * VERIDYN_OCR_API_KEY / VERIDYN_OCR_API_KEY_NEXT.  If neither env var is set,
- * auth is open (allow-all), matching the dev and staging posture.
+ * Auth posture: identical to sibling routes — Bearer via VERIDYN_OCR_API_KEY /
+ * VERIDYN_OCR_API_KEY_NEXT. Auth FAILS CLOSED: if neither env var is set, only
+ * genuine local dev passes through; any deployed environment (production or
+ * preview) returns 503 until a key is configured.
  *
  * Request body (JSON):
  *   { "text": string }
@@ -38,9 +39,10 @@ export function OPTIONS() {
  *   }
  */
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
   const authBlock = requireApiKey(req.headers);
   if (authBlock) {
-    Object.entries(corsHeaders()).forEach(([k, v]) => authBlock.headers.set(k, v));
+    Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
 
@@ -50,7 +52,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { detail: "Expected JSON body." },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
   if (typeof raw.text !== "string" || !raw.text.trim()) {
     return NextResponse.json(
       { detail: 'Body must contain "text" (non-empty string).' },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest) {
   if (Buffer.byteLength(raw.text, "utf8") > MAX_TEXT_BYTES) {
     return NextResponse.json(
       { detail: `text exceeds ${MAX_TEXT_BYTES / 1000} KB limit.` },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -78,6 +80,6 @@ export async function POST(req: NextRequest) {
       characters: raw.text.length,
       candidate_facts: candidateFacts,
     },
-    { headers: corsHeaders() },
+    { headers: corsHeaders(origin) },
   );
 }

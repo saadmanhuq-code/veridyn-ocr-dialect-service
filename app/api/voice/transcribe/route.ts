@@ -25,8 +25,9 @@
  *   { fallback: true }
  *
  * Limits: ≤8 MB audio, accepted mime types listed above.
- * Auth: requireApiKey (optional Bearer; allow-all when key unset).
- * CORS: corsHeaders() standard.
+ * Auth: requireApiKey (Bearer; fails closed with 503 on deployed environments
+ *   when no key is configured, allow-all only in local dev).
+ * CORS: corsHeaders(origin) — env-driven allowlist (OCR_CORS_ORIGINS).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -61,14 +62,15 @@ function coerceMime(raw: string): string {
   return lower;
 }
 
-export function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
   const authBlock = requireApiKey(req.headers);
   if (authBlock) {
-    Object.entries(corsHeaders()).forEach(([k, v]) => authBlock.headers.set(k, v));
+    Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
 
@@ -87,7 +89,7 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json(
         { detail: "Expected multipart/form-data." },
-        { status: 400, headers: corsHeaders() },
+        { status: 400, headers: corsHeaders(origin) },
       );
     }
 
@@ -95,14 +97,14 @@ export async function POST(req: NextRequest) {
     if (!(raw instanceof File)) {
       return NextResponse.json(
         { detail: "Missing form field: audio (File)." },
-        { status: 400, headers: corsHeaders() },
+        { status: 400, headers: corsHeaders(origin) },
       );
     }
 
     if (raw.size > AUDIO_SIZE_LIMIT) {
       return NextResponse.json(
         { detail: `Audio too large — max ${AUDIO_SIZE_LIMIT / 1024 / 1024} MB.` },
-        { status: 413, headers: corsHeaders() },
+        { status: 413, headers: corsHeaders(origin) },
       );
     }
 
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest) {
     if (!ACCEPTED_MIME.has(mimeType)) {
       return NextResponse.json(
         { detail: `Unsupported mime type: ${mimeType}. Accepted: ${[...ACCEPTED_MIME].join(", ")}.` },
-        { status: 415, headers: corsHeaders() },
+        { status: 415, headers: corsHeaders(origin) },
       );
     }
 
@@ -129,7 +131,7 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json(
         { detail: "Expected multipart/form-data or JSON { audio_base64, mime_type }." },
-        { status: 400, headers: corsHeaders() },
+        { status: 400, headers: corsHeaders(origin) },
       );
     }
 
@@ -137,7 +139,7 @@ export async function POST(req: NextRequest) {
     if (typeof b.audio_base64 !== "string" || !b.audio_base64) {
       return NextResponse.json(
         { detail: "JSON body must include audio_base64 (string)." },
-        { status: 400, headers: corsHeaders() },
+        { status: 400, headers: corsHeaders(origin) },
       );
     }
 
@@ -147,7 +149,7 @@ export async function POST(req: NextRequest) {
     if (!ACCEPTED_MIME.has(mimeType)) {
       return NextResponse.json(
         { detail: `Unsupported mime type: ${mimeType}.` },
-        { status: 415, headers: corsHeaders() },
+        { status: 415, headers: corsHeaders(origin) },
       );
     }
 
@@ -155,7 +157,7 @@ export async function POST(req: NextRequest) {
     if (audioBytes.length > AUDIO_SIZE_LIMIT) {
       return NextResponse.json(
         { detail: `Audio too large — max ${AUDIO_SIZE_LIMIT / 1024 / 1024} MB.` },
-        { status: 413, headers: corsHeaders() },
+        { status: 413, headers: corsHeaders(origin) },
       );
     }
     product = typeof b.product === "string" ? b.product : undefined;
@@ -166,7 +168,7 @@ export async function POST(req: NextRequest) {
   const sttResult = await transcribeViaBest(audioBytes, mimeType);
 
   if ("fallback" in sttResult && sttResult.fallback) {
-    return NextResponse.json({ fallback: true }, { headers: corsHeaders() });
+    return NextResponse.json({ fallback: true }, { headers: corsHeaders(origin) });
   }
 
   const result = sttResult as Exclude<typeof sttResult, { fallback: true }>;
@@ -201,6 +203,6 @@ export async function POST(req: NextRequest) {
       },
       fallback: false,
     },
-    { headers: corsHeaders() },
+    { headers: corsHeaders(origin) },
   );
 }

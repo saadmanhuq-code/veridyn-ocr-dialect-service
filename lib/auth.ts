@@ -28,13 +28,40 @@ function safeEqual(a: string, b: string): boolean {
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
+/**
+ * True only in genuine local development: not running on Vercel AND not built
+ * for production. This is the *only* place auth is allowed to be optional.
+ *
+ * Why this exact condition:
+ *  - Vercel sets VERCEL=1 on every deployment (production AND preview), so any
+ *    deployed environment fails closed.
+ *  - `next build` sets NODE_ENV=production, which also covers `next start`.
+ *  - Preview deployments are internet-reachable, so they MUST require a key —
+ *    keying off VERCEL_ENV === "production" alone would leave preview open.
+ * Local `npm run dev` and the test runner are non-Vercel + non-production, so
+ * they keep the zero-friction allow-all behavior.
+ */
+function authBypassAllowed(): boolean {
+  return !process.env.VERCEL && process.env.NODE_ENV !== "production";
+}
+
 export function requireApiKey(headers: Headers): NextResponse | null {
   // Accept either the current key or the next key (rotation window). If a key
-  // is unset, it does not gate. If BOTH are unset, auth is optional (allow-all).
+  // is unset, it does not gate.
   const accepted = [veridynOcrBearer(), veridynOcrBearerNext()].filter(
     (k): k is string => k !== null,
   );
-  if (accepted.length === 0) return null;
+
+  // FAIL CLOSED: if no keys are configured, only local dev may pass through.
+  // Any deployed environment (production or preview) is rejected so the service
+  // never silently serves unauthenticated traffic when keys are missing.
+  if (accepted.length === 0) {
+    if (authBypassAllowed()) return null;
+    return NextResponse.json(
+      { detail: "Service unavailable: API key not configured." },
+      { status: 503 },
+    );
+  }
 
   const got = bearerFromRequest(headers.get("authorization"));
   if (got === null || !accepted.some((expected) => safeEqual(got, expected))) {

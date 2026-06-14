@@ -6,14 +6,15 @@ import { inferDialectFromText } from "@/lib/dialect";
 
 export const runtime = "nodejs";
 
-export function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
   const authBlock = requireApiKey(req.headers);
   if (authBlock) {
-    Object.entries(corsHeaders()).forEach(([k, v]) => authBlock.headers.set(k, v));
+    Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ detail: "Expected JSON body." }, { status: 400, headers: corsHeaders() });
+    return NextResponse.json({ detail: "Expected JSON body." }, { status: 400, headers: corsHeaders(origin) });
   }
   const text = typeof body === "object" && body && "text" in body ? String((body as { text: unknown }).text) : "";
   const evidence = inferDialectFromText(text);
@@ -31,6 +32,6 @@ export async function POST(req: NextRequest) {
       input_characters: text.length,
       evidence,
     },
-    { headers: corsHeaders() },
+    { headers: corsHeaders(origin) },
   );
 }

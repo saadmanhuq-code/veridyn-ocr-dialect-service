@@ -42,8 +42,12 @@ to the primary key after all consumers are cut over.
 
 ## Auth and rotation contract
 
-- If neither `VERIDYN_OCR_API_KEY` nor `VERIDYN_OCR_API_KEY_NEXT` is configured
-  on the service, extraction requests are unauthenticated.
+- Auth **fails closed**. If neither `VERIDYN_OCR_API_KEY` nor
+  `VERIDYN_OCR_API_KEY_NEXT` is configured, deployed environments (Vercel
+  production **and** preview) reject every request with `503 Service
+  unavailable`. The unauthenticated allow-all path exists only in genuine local
+  dev (not on Vercel and `NODE_ENV !== "production"`) so `npm run dev` and the
+  test suite stay zero-friction.
 - If either key is configured, extraction requests must send an exact bearer
   token match for the current or next key.
 - Do not treat an unauthenticated smoke test as authenticated provider proof.
@@ -98,4 +102,4 @@ async function extractOcr(base: string, buf: Uint8Array, filename: string, apiKe
 
 - **Multi-page raster PDF**: WASM path may degrade vs Docker sidecar (`protein-chain-bd/scripts/veridyn-ocr-service`). For maximal parity deploy that sidecar and point **`VERIDYN_OCR_URL`** at it.
 - **Warm latency**: first WASM OCR may download language blobs; retries are acceptable.
-- **`OCR_CORS_ORIGIN`** on this service scopes browser CORS; server-to-server calls do not rely on it.
+- **`OCR_CORS_ORIGINS`** (comma-separated allowlist) on this service scopes browser CORS and **fails closed**: a matching request origin is reflected into `Access-Control-Allow-Origin`, unlisted origins get no grant, and the default is empty (no wildcard). Set `*` only to deliberately allow any browser origin. Server-to-server calls do not rely on CORS.

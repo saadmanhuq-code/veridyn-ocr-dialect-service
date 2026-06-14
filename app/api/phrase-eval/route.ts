@@ -6,8 +6,8 @@ import { inferDialectFromText, normalizeBn, DIALECT_SUGGESTION_FLOOR } from "@/l
 
 export const runtime = "nodejs";
 
-export function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
 /**
@@ -15,7 +15,8 @@ export function OPTIONS() {
  *
  * Evaluates one or more phrases against the dialect cue catalog and returns
  * the cue-matching inference result for each phrase.  Accepts the same auth
- * posture as sibling routes (optional Bearer via VERIDYN_OCR_API_KEY).
+ * posture as sibling routes — Bearer via VERIDYN_OCR_API_KEY; fails closed
+ * (503) on deployed environments when no key is configured.
  *
  * Request body (JSON):
  *   { "phrases": string[] }          — evaluate up to 50 phrases in one call
@@ -34,9 +35,10 @@ export function OPTIONS() {
  *   }
  */
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
   const authBlock = requireApiKey(req.headers);
   if (authBlock) {
-    Object.entries(corsHeaders()).forEach(([k, v]) => authBlock.headers.set(k, v));
+    Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
 
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { detail: "Expected JSON body." },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
   } else {
     return NextResponse.json(
       { detail: 'Body must contain "phrase" (string) or "phrases" (string[]).' },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
   if (phrases.length > MAX_PHRASES) {
     return NextResponse.json(
       { detail: `Too many phrases — max ${MAX_PHRASES} per request.` },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -85,6 +87,6 @@ export async function POST(req: NextRequest) {
       suggestion_floor: DIALECT_SUGGESTION_FLOOR,
       results,
     },
-    { headers: corsHeaders() },
+    { headers: corsHeaders(origin) },
   );
 }
