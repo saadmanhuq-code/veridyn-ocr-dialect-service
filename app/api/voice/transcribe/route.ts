@@ -25,7 +25,7 @@
  *   { fallback: true }
  *
  * Limits: ≤8 MB audio, accepted mime types listed above.
- * Auth: requireApiKey (optional Bearer; allow-all when key unset).
+ * Auth: requireApiKey (Bearer; fails closed when keys are unset in production).
  * CORS: corsHeaders() standard.
  */
 

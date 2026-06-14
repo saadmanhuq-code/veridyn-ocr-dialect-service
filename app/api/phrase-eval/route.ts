@@ -14,8 +14,8 @@ export function OPTIONS() {
  * POST /api/phrase-eval
  *
  * Evaluates one or more phrases against the dialect cue catalog and returns
- * the cue-matching inference result for each phrase.  Accepts the same auth
- * posture as sibling routes (optional Bearer via VERIDYN_OCR_API_KEY).
+ * the cue-matching inference result for each phrase. Accepts the same
+ * fail-closed Bearer posture as sibling routes.
  *
  * Request body (JSON):
  *   { "phrases": string[] }          — evaluate up to 50 phrases in one call
