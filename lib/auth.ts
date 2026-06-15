@@ -1,4 +1,4 @@
-/** Optional Bearer auth — same convention as protein-chain-bd Veridyn client. */
+/** Fail-closed Bearer auth — same convention as protein-chain-bd Veridyn client. */
 
 import { timingSafeEqual } from "node:crypto";
 
