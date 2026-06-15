@@ -21,7 +21,7 @@ export function OPTIONS(req: NextRequest) {
  * Auth posture: identical to sibling routes — Bearer via VERIDYN_OCR_API_KEY /
  * VERIDYN_OCR_API_KEY_NEXT. Auth FAILS CLOSED: if neither env var is set, only
  * genuine local dev passes through; any deployed environment (production or
- * preview) returns 503 until a key is configured.
+ * preview) returns 403 until a key is configured.
  *
  * Request body (JSON):
  *   { "text": string }

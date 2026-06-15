@@ -25,7 +25,7 @@
  *   { fallback: true }
  *
  * Limits: ≤8 MB audio, accepted mime types listed above.
- * Auth: requireApiKey (Bearer; fails closed with 503 on deployed environments
+ * Auth: requireApiKey (Bearer; fails closed with 403 on deployed environments
  *   when no key is configured, allow-all only in local dev).
  * CORS: corsHeaders(origin) — env-driven allowlist (OCR_CORS_ORIGINS).
  */

@@ -16,7 +16,7 @@ export function OPTIONS(req: NextRequest) {
  * Evaluates one or more phrases against the dialect cue catalog and returns
  * the cue-matching inference result for each phrase.  Accepts the same auth
  * posture as sibling routes — Bearer via VERIDYN_OCR_API_KEY; fails closed
- * (503) on deployed environments when no key is configured.
+ * (403) on deployed environments when no key is configured.
  *
  * Request body (JSON):
  *   { "phrases": string[] }          — evaluate up to 50 phrases in one call
