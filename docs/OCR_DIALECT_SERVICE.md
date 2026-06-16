@@ -43,12 +43,21 @@ to the primary key after all consumers are cut over.
 ## Auth and rotation contract
 
 - Auth **fails closed**. If neither `VERIDYN_OCR_API_KEY` nor
-  `VERIDYN_OCR_API_KEY_NEXT` is configured, deployed environments (Vercel
-  production **and** preview) reject every request with `403 Forbidden` (a
-  permanent config error, not a retryable outage). The unauthenticated allow-all
-  path exists only in genuine local dev (not on Vercel and
-  `NODE_ENV !== "production"`) so `npm run dev` and the test suite stay
-  zero-friction.
+  `VERIDYN_OCR_API_KEY_NEXT` is configured, every environment rejects all
+  requests with `403 Forbidden` (a permanent config error, not a retryable
+  outage) by default. The unauthenticated allow-all bypass requires **all
+  three** of the following conditions simultaneously:
+    1. `VERIDYN_OCR_ALLOW_UNAUTHENTICATED=true` — must be set explicitly by
+       the developer.
+    2. Not running on Vercel (`VERCEL` env var absent) — Vercel sets this on
+       every deployment including preview, so all deployed Vercel environments
+       fail closed regardless of the flag.
+    3. Not a production build (`NODE_ENV !== "production"`) — `next build` sets
+       this, which covers `next start` and all preview builds.
+
+  This triple-condition opt-in prevents fail-open on non-Vercel hosts (e.g.
+  Docker containers on Oracle VM3) that omit the flag and have no keys
+  configured. Local `npm run dev` with the flag set stays zero-friction.
 - If either key is configured, extraction requests must send an exact bearer
   token match for the current or next key.
 - Do not treat an unauthenticated smoke test as authenticated provider proof.
