@@ -36,9 +36,12 @@ Production: canonical deployment is `https://veridyn-ocr-dialect-service.vercel.
 **Bearer auth fails closed.** Set `VERIDYN_OCR_API_KEY` (and optionally
 `VERIDYN_OCR_API_KEY_NEXT` for staged rotation) on every deployed environment
 — production **and** preview. Consumers send `Authorization: Bearer <matching
-key>`. If no key is configured, deployed environments reject all API requests
-with `403 Forbidden`; the allow-all bypass exists only in genuine local dev
-(not on Vercel, `NODE_ENV !== "production"`). Promote `_NEXT` after all
+key>`. If no key is configured, every environment rejects all API requests with
+`403 Forbidden` by default. The allow-all bypass requires **all three**
+conditions to hold simultaneously: (a) `VERIDYN_OCR_ALLOW_UNAUTHENTICATED=true`
+set explicitly, (b) not on Vercel, and (c) `NODE_ENV !== "production"`. This
+explicit opt-in prevents fail-open on non-Vercel hosts (e.g. Docker on Oracle
+VM3) that omit the flag and have no keys configured. Promote `_NEXT` after all
 consumers are updated.
 
 **CORS fails closed.** `OCR_CORS_ORIGINS` (comma-separated allowlist) controls

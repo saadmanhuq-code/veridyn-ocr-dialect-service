@@ -1,6 +1,6 @@
 /** Fail-closed Bearer auth — same convention as protein-chain-bd Veridyn client. */
 
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
@@ -21,28 +21,41 @@ export function bearerFromRequest(authHeader: string | null): string | null {
   return authHeader.slice(7).trim() || null;
 }
 
-/** Constant-time string compare. Length-guarded so unequal lengths never throw. */
+/**
+ * Constant-time string compare. Both inputs are SHA-256-hashed to a fixed
+ * 32-byte width before comparison so timingSafeEqual never throws and no
+ * information about key length is leaked via timing.
+ */
 function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return ab.length === bb.length && timingSafeEqual(ab, bb);
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
 }
 
 /**
- * True only in genuine local development: not running on Vercel AND not built
- * for production. This is the *only* place auth is allowed to be optional.
+ * True only when ALL THREE conditions hold simultaneously:
+ *  (a) VERIDYN_OCR_ALLOW_UNAUTHENTICATED=true is set explicitly by the developer.
+ *  (b) Not running on Vercel — VERCEL is unset (Vercel sets it on every deployment,
+ *      production AND preview, so any deployed environment fails closed regardless).
+ *  (c) Not a production build — NODE_ENV !== "production" (`next build` sets this,
+ *      which also covers `next start` and preview builds).
  *
- * Why this exact condition:
- *  - Vercel sets VERCEL=1 on every deployment (production AND preview), so any
- *    deployed environment fails closed.
- *  - `next build` sets NODE_ENV=production, which also covers `next start`.
- *  - Preview deployments are internet-reachable, so they MUST require a key —
- *    keying off VERCEL_ENV === "production" alone would leave preview open.
- * Local `npm run dev` and the test runner are non-Vercel + non-production, so
- * they keep the zero-friction allow-all behavior.
+ * Why the explicit opt-in flag is required (in addition to the existing checks):
+ *  This service also runs as a Docker container on non-Vercel hosts (e.g. Oracle
+ *  VM3). Without the flag, a misconfigured container that omits VERCEL and keeps
+ *  NODE_ENV at its default would fail open with no key configured. The opt-in flag
+ *  ensures every environment fails closed by default; only a developer who has
+ *  deliberately set the flag on a genuine local box gets the allow-all path.
  */
 function authBypassAllowed(): boolean {
-  return !process.env.VERCEL && process.env.NODE_ENV !== "production";
+  const explicitDevOptIn =
+    process.env.VERIDYN_OCR_ALLOW_UNAUTHENTICATED?.trim().toLowerCase() ===
+    "true";
+  return (
+    explicitDevOptIn &&
+    !process.env.VERCEL &&
+    process.env.NODE_ENV !== "production"
+  );
 }
 
 export function requireApiKey(headers: Headers): NextResponse | null {
