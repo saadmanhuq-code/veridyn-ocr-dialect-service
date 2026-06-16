@@ -7,11 +7,12 @@ import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-o
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
 export async function GET(req: NextRequest) {
+  const origin = req.headers.get("origin");
   let ocrWarm: string | undefined;
   if (req.nextUrl.searchParams.get("warm") === "ocr") {
     try {
@@ -27,5 +28,5 @@ export async function GET(req: NextRequest) {
       ocrWarm = e instanceof Error ? e.message : "failed";
     }
   }
-  return NextResponse.json({ ok: true, ...(ocrWarm ? { ocr_warm: ocrWarm } : {}) }, { headers: corsHeaders() });
+  return NextResponse.json({ ok: true, ...(ocrWarm ? { ocr_warm: ocrWarm } : {}) }, { headers: corsHeaders(origin) });
 }

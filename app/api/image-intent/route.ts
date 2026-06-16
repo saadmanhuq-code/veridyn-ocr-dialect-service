@@ -40,14 +40,15 @@ const ACCEPTED_IMAGE_MIME = new Set([
   "image/webp",
 ]);
 
-export function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+export function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
 export async function POST(req: NextRequest) {
+  const origin = req.headers.get("origin");
   const authBlock = requireApiKey(req.headers);
   if (authBlock) {
-    Object.entries(corsHeaders()).forEach(([k, v]) => authBlock.headers.set(k, v));
+    Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
 
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { detail: "Expected multipart/form-data." },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
   if (!(raw instanceof File)) {
     return NextResponse.json(
       { detail: "Missing form field: image (File)." },
-      { status: 400, headers: corsHeaders() },
+      { status: 400, headers: corsHeaders(origin) },
     );
   }
 
@@ -75,14 +76,14 @@ export async function POST(req: NextRequest) {
       {
         detail: `Unsupported image type: ${mimeType}. Accepted: ${[...ACCEPTED_IMAGE_MIME].join(", ")}.`,
       },
-      { status: 415, headers: corsHeaders() },
+      { status: 415, headers: corsHeaders(origin) },
     );
   }
 
   if (raw.size > IMAGE_SIZE_LIMIT) {
     return NextResponse.json(
       { detail: `Image too large — max ${IMAGE_SIZE_LIMIT / 1024 / 1024} MB.` },
-      { status: 413, headers: corsHeaders() },
+      { status: 413, headers: corsHeaders(origin) },
     );
   }
 
@@ -104,12 +105,12 @@ export async function POST(req: NextRequest) {
             "Image intent unavailable on Vercel — no vision API keys configured. Set GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_AI_STUDIO_KEY or OPENROUTER_API_KEY.",
           vision_keys_required: true,
         },
-        { status: 503, headers: corsHeaders() },
+        { status: 503, headers: corsHeaders(origin) },
       );
     }
     return NextResponse.json(
       { fallback: true, detail: "No vision provider configured" },
-      { headers: corsHeaders() },
+      { headers: corsHeaders(origin) },
     );
   }
 
@@ -124,5 +125,5 @@ export async function POST(req: NextRequest) {
     consent: true,
   });
 
-  return NextResponse.json(result, { headers: corsHeaders() });
+  return NextResponse.json(result, { headers: corsHeaders(origin) });
 }
