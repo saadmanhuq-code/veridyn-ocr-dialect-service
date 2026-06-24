@@ -1,0 +1,20 @@
+# GitLab CI — proof gate while GitHub Actions are disabled by operator policy.
+# GitHub = source/PR authority; GitLab = CI/proof. This repo is a pull-mirror of
+# github.com/saadmanhuq-code/veridyn-ocr-dialect-service (mirror_trigger_builds=true).
+# Runs on the self-hosted oracle-vm (arm64) runner — $0 compute, no GitLab.com SaaS minutes.
+stages:
+  - test
+
+test:
+  stage: test
+  image: node:24-bookworm
+  tags: [oracle-vm]
+  script:
+    - node --version && npm --version
+    # npm test = `node --import tsx --test "lib/**/*.test.ts"` — runs the full lib unit suite,
+    # including the integrity gate lib/integrity-auth-coverage.test.ts (was inert: no CI path).
+    - npm ci
+    - npm test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
