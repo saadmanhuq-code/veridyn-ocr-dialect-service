@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "app/**/*.{ts,tsx}",
+    "scripts/smoke.mjs",
+    "scripts/integrity-gate.ts"
+  ],
+  "project": [
+    "lib/**/*.ts",
+    "scripts/**/*.{ts,mjs}",
+    "app/**/*.{ts,tsx}"
+  ],
+  "ignore": [
+    "scripts/time-ocr.ts"
+  ],
+  "ignoreDependencies": [
+    "pdf-lib"
+  ],
+  "exclude": [
+    "duplicates"
+  ]
+}
