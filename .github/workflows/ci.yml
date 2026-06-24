@@ -36,3 +36,14 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Dead-code scan (advisory)
+        # continue-on-error: findings are reported but do not break CI.
+        # Triage: see knip.json for confirmed-FP allowlist rationale.
+        # Confirmed dead (remove separately): scripts/time-ocr.ts, pdf-parse dep,
+        #   isOpenRouterSttEnabled, isVertexSttEnabled, veridynOcrBearer,
+        #   bearerFromRequest, normalizeBn (alias), dialectCueCatalog,
+        #   extractCandidateFactsFromText, extension, tessDataPath,
+        #   SttFallback, DialectCandidate, DialectInferenceStatus, DialectClassifierDetail.
+        continue-on-error: true
+        run: npx knip
