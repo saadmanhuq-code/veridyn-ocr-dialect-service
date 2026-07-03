@@ -8,10 +8,13 @@
     "start": "next start -p 3333",
     "lint": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
-    "test": "node --import tsx --test \"lib/**/*.test.ts\""
+    "test": "node --import tsx --test \"lib/**/*.test.ts\"",
+    "test:report": "node --import tsx --test --test-reporter=./scripts/jest-json-reporter.mjs --test-reporter-destination=test-report.json \"lib/**/*.test.ts\"",
+    "test:gate": "npm run test:report && node scripts/run-integrity-gate.mjs"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.67",
+    "@saadmanhuq-code/integrity-guards": "file:../../Users/saadm/Projects/portfolio-core/packages/integrity-guards",
     "jszip": "^3.10.1",
     "next": "^15.1.3",
     "pdf-parse": "^1.1.1",
