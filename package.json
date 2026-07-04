@@ -8,7 +8,8 @@
     "start": "next start -p 3333",
     "lint": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
-    "test": "node --import tsx --test \"lib/**/*.test.ts\""
+    "test": "node --import tsx --test \"lib/**/*.test.ts\"",
+    "test:gate": "node --import tsx --test \"lib/integrity-auth-coverage.test.ts\""
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.67",

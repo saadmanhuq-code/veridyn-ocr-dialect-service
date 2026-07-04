@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { corsHeaders } from "@/lib/cors";
 import { getOcrWorker } from "@/lib/ocr-engine";
 import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
+import pkg from "@/package.json";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+// Deploy-identity binding: lets a caller (or the orchestrator's remote-truth
+// probes) confirm WHICH build is actually serving traffic, not just that
+// *some* build responds 200. commit_sha is null outside Vercel (local dev).
+const CONTRACT_VERSION = pkg.version;
 
 export function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
@@ -28,5 +34,13 @@ export async function GET(req: NextRequest) {
       ocrWarm = e instanceof Error ? e.message : "failed";
     }
   }
-  return NextResponse.json({ ok: true, ...(ocrWarm ? { ocr_warm: ocrWarm } : {}) }, { headers: corsHeaders(origin) });
+  return NextResponse.json(
+    {
+      ok: true,
+      commit_sha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+      contract_version: CONTRACT_VERSION,
+      ...(ocrWarm ? { ocr_warm: ocrWarm } : {}),
+    },
+    { headers: corsHeaders(origin) },
+  );
 }
