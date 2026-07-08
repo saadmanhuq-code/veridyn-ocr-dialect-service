@@ -12,7 +12,12 @@
  */
 
 import { generateViaVertex, isVertexGeminiEnabled } from "./vertex-gemini";
-import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "./vision-ocr";
+import {
+  isGeminiVisionEnabled,
+  isOpenRouterVisionEnabled,
+  openRouterVisionCompletionForModel,
+  runOpenRouterVisionModelChain,
+} from "./vision-ocr";
 
 export interface ImageIntentResult {
   object_label: string;
@@ -195,57 +200,23 @@ async function intentViaOpenRouter(imageBytes: Buffer): Promise<ImageIntentResul
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENROUTER_API_KEY is not configured");
 
-  const b64 = imageBytes.toString("base64");
-  const mime = mimeFromBuffer(imageBytes);
-  const model =
-    process.env.OPENROUTER_OCR_MODEL?.trim() || "google/gemini-2.0-flash-001";
-
-  const t0 = Date.now();
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://veridyn-ocr-dialect-service.vercel.app",
-      "X-Title": "Veridyn Image Intent",
-    },
-    body: JSON.stringify({
+  return runOpenRouterVisionModelChain("OpenRouter image intent", async (model, timeoutMs) => {
+    const completion = await openRouterVisionCompletionForModel({
+      imageBytes,
       model,
-      temperature: 0,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: INTENT_PROMPT },
-            { type: "image_url", image_url: { url: `data:${mime};base64,${b64}` } },
-          ],
-        },
-      ],
-    }),
-    signal: AbortSignal.timeout(55_000),
-  });
-
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const err = (await res.json()) as { error?: { message?: string } };
-      detail = err.error?.message ?? detail;
-    } catch {
-      /* ignore */
+      prompt: INTENT_PROMPT,
+      title: "Veridyn Image Intent",
+      maxTokens: 450,
+      timeoutMs,
+    });
+    const raw = completion.content.trim();
+    const parsed = parseJsonField(raw);
+    if (!parsed) {
+      throw new Error(`could not parse JSON from response: ${raw.slice(0, 200)}`);
     }
-    throw new Error(`OpenRouter intent HTTP ${res.status}: ${detail}`);
-  }
 
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const raw = (data.choices?.[0]?.message?.content ?? "").trim();
-  const parsed = parseJsonField(raw);
-  if (!parsed) {
-    throw new Error(`OpenRouter intent: could not parse JSON from response: ${raw.slice(0, 200)}`);
-  }
-
-  return coerceResult(parsed, "openrouter", model, Date.now() - t0);
+    return coerceResult(parsed, "openrouter_vision", model, completion.latency_ms);
+  });
 }
 
 /**
