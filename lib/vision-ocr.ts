@@ -2,6 +2,36 @@
 
 import { generateViaVertex, isVertexGeminiEnabled } from "./vertex-gemini";
 
+export const DEFAULT_OPENROUTER_OCR_MODELS = [
+  "xiaomi/mimo-v2.5",
+  "qwen/qwen3-vl-8b-instruct",
+  "qwen/qwen3-vl-30b-a3b-instruct",
+] as const;
+
+export const OPENROUTER_VISION_MODEL_TIMEOUT_MS = 18_000;
+export const OPENROUTER_VISION_CHAIN_TIMEOUT_MS = 54_000;
+
+function parseModelList(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+}
+
+function uniqueModels(models: readonly string[]): string[] {
+  return [...new Set(models)];
+}
+
+export function openRouterVisionModelsFromEnv(env: NodeJS.ProcessEnv = process.env): string[] {
+  const configuredModels = parseModelList(env.OPENROUTER_OCR_MODELS);
+  if (configuredModels.length > 0) return uniqueModels(configuredModels);
+
+  const legacyModel = env.OPENROUTER_OCR_MODEL?.trim();
+  if (legacyModel) return uniqueModels([legacyModel, ...DEFAULT_OPENROUTER_OCR_MODELS]);
+
+  return [...DEFAULT_OPENROUTER_OCR_MODELS];
+}
+
 function mimeFromBuffer(buf: Buffer): string {
   if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
   if (buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
@@ -84,22 +114,62 @@ async function ocrImageViaGeminiStudio(
   return { text, confidence: estimatedConfidenceFromVertexCandidate(text, candidate) };
 }
 
-export async function ocrImageViaOpenRouter(
-  imageBytes: Buffer,
-  languageHint: string | null | undefined,
-): Promise<{ text: string; confidence: number }> {
+function openRouterVisionContentToText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((part) => {
+      const item = part as { type?: string; text?: string };
+      return item.type === "text" && item.text ? item.text : "";
+    })
+    .join("\n");
+}
+
+function formatOpenRouterChainError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+export async function runOpenRouterVisionModelChain<T>(
+  label: string,
+  runModel: (model: string, timeoutMs: number) => Promise<T>,
+): Promise<T> {
+  const errors: string[] = [];
+  const deadlineMs = Date.now() + OPENROUTER_VISION_CHAIN_TIMEOUT_MS;
+
+  for (const model of openRouterVisionModelsFromEnv()) {
+    const remainingMs = deadlineMs - Date.now();
+    if (remainingMs <= 0) {
+      errors.push(`${model}: skipped because ${label} exceeded ${OPENROUTER_VISION_CHAIN_TIMEOUT_MS}ms chain budget`);
+      continue;
+    }
+
+    try {
+      return await runModel(model, Math.min(OPENROUTER_VISION_MODEL_TIMEOUT_MS, remainingMs));
+    } catch (error) {
+      errors.push(`${model}: ${formatOpenRouterChainError(error)}`);
+    }
+  }
+
+  throw new Error(`${label} failed for all configured models: ${errors.join("; ")}`);
+}
+
+export async function openRouterVisionCompletionForModel(params: {
+  imageBytes: Buffer;
+  model: string;
+  prompt: string;
+  title: string;
+  maxTokens: number;
+  timeoutMs?: number;
+}): Promise<{ content: string; latency_ms: number }> {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured");
   }
 
-  const model = process.env.OPENROUTER_OCR_MODEL?.trim() || "google/gemini-2.0-flash-001";
-  const b64 = imageBytes.toString("base64");
-  const mime = mimeFromBuffer(imageBytes);
-  const langNote =
-    languageHint?.toLowerCase().includes("ben") || languageHint?.toLowerCase().includes("bn")
-      ? "The document may include Bengali (Bangla) and English text."
-      : "The document may include English and Bengali (Bangla) text.";
+  const b64 = params.imageBytes.toString("base64");
+  const mime = mimeFromBuffer(params.imageBytes);
+  const t0 = Date.now();
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -107,19 +177,17 @@ export async function ocrImageViaOpenRouter(
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://veridyn-ocr-dialect-service.vercel.app",
-      "X-Title": "Veridyn OCR Dialect Service",
+      "X-Title": params.title,
     },
     body: JSON.stringify({
-      model,
+      model: params.model,
       temperature: 0,
+      max_tokens: params.maxTokens,
       messages: [
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text: `Extract every line of text from this trade licence / certificate scan. ${langNote} Return plain text only — no markdown, no commentary.`,
-            },
+            { type: "text", text: params.prompt },
             {
               type: "image_url",
               image_url: { url: `data:${mime};base64,${b64}` },
@@ -128,7 +196,7 @@ export async function ocrImageViaOpenRouter(
         },
       ],
     }),
-    signal: AbortSignal.timeout(55_000),
+    signal: AbortSignal.timeout(params.timeoutMs ?? OPENROUTER_VISION_MODEL_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -139,26 +207,52 @@ export async function ocrImageViaOpenRouter(
     } catch {
       /* ignore */
     }
-    throw new Error(`OpenRouter vision HTTP ${res.status}: ${detail}`);
+    throw new Error(`HTTP ${res.status}: ${detail}`);
   }
 
   const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
+    choices?: Array<{ message?: { content?: unknown } }>;
   };
-  const content = data.choices?.[0]?.message?.content;
-  let text = "";
-  if (typeof content === "string") text = content;
-  else if (Array.isArray(content)) {
-    text = content
-      .map((part) => (part.type === "text" && part.text ? part.text : ""))
-      .join("\n");
+  return {
+    content: openRouterVisionContentToText(data.choices?.[0]?.message?.content).trim(),
+    latency_ms: Date.now() - t0,
+  };
+}
+
+export async function ocrImageViaOpenRouter(
+  imageBytes: Buffer,
+  languageHint: string | null | undefined,
+): Promise<{ text: string; confidence: number; model: string }> {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is not configured");
   }
-  text = text.replace(/\s+/g, " ").trim();
-  // estimated_confidence: heuristic proxy — not a calibrated OCR score.
-  // Scale by non-whitespace character ratio; 0.1 for empty output.
-  const charRatioOR = text.length > 0 ? Math.min(1, text.replace(/\s/g, "").length / text.length + 0.5) : 0;
-  const estimatedConfidenceOR = text ? Math.round(charRatioOR * 100) / 100 : 0.1;
-  return { text, confidence: estimatedConfidenceOR };
+
+  const langNote =
+    languageHint?.toLowerCase().includes("ben") || languageHint?.toLowerCase().includes("bn")
+      ? "The document may include Bengali (Bangla) and English text."
+      : "The document may include English and Bengali (Bangla) text.";
+  const prompt = `Extract every line of text from this trade licence / certificate scan. ${langNote} Return plain text only — no markdown, no commentary.`;
+
+  return runOpenRouterVisionModelChain("OpenRouter vision OCR", async (model, timeoutMs) => {
+    const completion = await openRouterVisionCompletionForModel({
+      imageBytes,
+      model,
+      prompt,
+      title: "Veridyn OCR Dialect Service",
+      maxTokens: 1200,
+      timeoutMs,
+    });
+    const text = completion.content.replace(/\s+/g, " ").trim();
+    if (!text) {
+      throw new Error("empty OCR text");
+    }
+    // estimated_confidence: heuristic proxy — not a calibrated OCR score.
+    // Scale by non-whitespace character ratio; 0.1 for empty output.
+    const charRatioOR = text.length > 0 ? Math.min(1, text.replace(/\s/g, "").length / text.length + 0.5) : 0;
+    const estimatedConfidenceOR = text ? Math.round(charRatioOR * 100) / 100 : 0.1;
+    return { text, confidence: estimatedConfidenceOR, model };
+  });
 }
 
 export function isOpenRouterVisionEnabled(): boolean {
@@ -201,7 +295,7 @@ export async function ocrImageViaBestVision(
   if (isOpenRouterVisionEnabled()) {
     try {
       const o = await ocrImageViaOpenRouter(imageBytes, languageHint);
-      return { ...o, engine: "openrouter_vision" };
+      return { ...o, engine: `openrouter_vision:${o.model}` };
     } catch (e) {
       errors.push(e instanceof Error ? e.message : String(e));
     }

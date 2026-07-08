@@ -33,6 +33,17 @@ npx vercel deploy --prod --yes
 
 Production: canonical deployment is `https://veridyn-ocr-dialect-service.vercel.app`.
 
+## Vercel Vision OCR fallback
+
+The image OCR and image-intent paths try Vertex first, then direct Gemini, then
+OpenRouter vision models. Set `OPENROUTER_API_KEY` for the OpenRouter fallback.
+`OPENROUTER_OCR_MODELS` accepts a comma-separated ordered model chain. If it is
+unset, legacy `OPENROUTER_OCR_MODEL` is tried first and then the built-in
+fallbacks are used: `xiaomi/mimo-v2.5`, `qwen/qwen3-vl-8b-instruct`, and
+`qwen/qwen3-vl-30b-a3b-instruct`. Keep unproven or router-alias models such as
+DeepSeek text models, NVIDIA free vision routes, and `openrouter/free` out of the
+default image chain until a live image probe proves that exact model for OCR.
+
 **Bearer auth fails closed.** Set `VERIDYN_OCR_API_KEY` (and optionally
 `VERIDYN_OCR_API_KEY_NEXT` for staged rotation) on every deployed environment
 — production **and** preview. Consumers send `Authorization: Bearer <matching

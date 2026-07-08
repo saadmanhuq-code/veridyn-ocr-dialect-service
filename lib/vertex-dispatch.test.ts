@@ -13,6 +13,8 @@ const envKeys = [
   "GEMINI_API_KEY",
   "GOOGLE_CLOUD_VISION_API_KEY",
   "OPENROUTER_API_KEY",
+  "OPENROUTER_OCR_MODEL",
+  "OPENROUTER_OCR_MODELS",
   "VERTEX_PROJECT",
   "VERTEX_LOCATION",
   "VERTEX_MODEL",
@@ -198,5 +200,92 @@ describe("dispatcher fallback without Vertex service account", () => {
     const result = await transcribeViaBest(Buffer.from("audio"), "audio/wav");
 
     assert.deepEqual(result, { fallback: true });
+  });
+
+  test("ocrImageViaBestVision skips empty OpenRouter OCR output and records the later model in engine provenance", async () => {
+    process.env.OPENROUTER_API_KEY = "openrouter-key";
+    process.env.OPENROUTER_OCR_MODELS = "bad/vision-model,xiaomi/mimo-v2.5";
+
+    const seenModels: string[] = [];
+    globalThis.fetch = (async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      seenModels.push(String(body.model));
+      if (body.model === "bad/vision-model") {
+        return jsonResponse({ choices: [{ message: { content: "   " } }] });
+      }
+      return jsonResponse({
+        choices: [{ message: { content: "Trade License 456" } }],
+      });
+    }) as typeof fetch;
+
+    const result = await ocrImageViaBestVision(pngBytes(), "bn");
+
+    assert.deepEqual(seenModels, ["bad/vision-model", "xiaomi/mimo-v2.5"]);
+    assert.equal(result.text, "Trade License 456");
+    assert.equal(result.engine, "openrouter_vision:xiaomi/mimo-v2.5");
+    assert.ok(result.confidence > 0);
+  });
+
+  test("OPENROUTER_OCR_MODEL remains first in the OpenRouter fallback order", async () => {
+    process.env.OPENROUTER_API_KEY = "openrouter-key";
+    process.env.OPENROUTER_OCR_MODEL = "legacy/vision-model";
+
+    const seenModels: string[] = [];
+    globalThis.fetch = (async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      seenModels.push(String(body.model));
+      if (body.model === "legacy/vision-model") {
+        return jsonResponse({ error: { message: "legacy model has no image endpoint" } }, 400);
+      }
+      return jsonResponse({
+        choices: [{ message: { content: "Fallback OCR text" } }],
+      });
+    }) as typeof fetch;
+
+    const result = await ocrImageViaBestVision(pngBytes(), "en");
+
+    assert.deepEqual(seenModels.slice(0, 2), ["legacy/vision-model", "xiaomi/mimo-v2.5"]);
+    assert.equal(result.engine, "openrouter_vision:xiaomi/mimo-v2.5");
+    assert.equal(result.text, "Fallback OCR text");
+  });
+
+  test("analyzeImageIntent skips malformed OpenRouter output and records selected model provenance", async () => {
+    process.env.OPENROUTER_API_KEY = "openrouter-key";
+    process.env.OPENROUTER_OCR_MODELS = "bad/intent-model,qwen/qwen3-vl-8b-instruct";
+
+    const seenModels: string[] = [];
+    globalThis.fetch = (async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      seenModels.push(String(body.model));
+      if (body.model === "bad/intent-model") {
+        return jsonResponse({ choices: [{ message: { content: "not json" } }] });
+      }
+      return jsonResponse({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                object_label: "trade licence",
+                scene: "document scan",
+                intent_guess: "extract document text",
+                text_in_image: "Trade License",
+                language: "en",
+                category_hints: ["document"],
+                condition_hints: ["scan"],
+                confidence: 0.82,
+              }),
+            },
+          },
+        ],
+      });
+    }) as typeof fetch;
+
+    const result = await analyzeImageIntent(pngBytes());
+
+    assert.deepEqual(seenModels, ["bad/intent-model", "qwen/qwen3-vl-8b-instruct"]);
+    assert.ok(result);
+    assert.equal(result.provenance.provider, "openrouter_vision");
+    assert.equal(result.provenance.model, "qwen/qwen3-vl-8b-instruct");
+    assert.equal(result.object_label, "trade licence");
   });
 });
