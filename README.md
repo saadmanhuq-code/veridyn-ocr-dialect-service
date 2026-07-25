@@ -2,10 +2,10 @@
 
 Standalone OCR + dialect “catcher” service for Bangladesh-first workflows.
 
-- **OCR**: `POST /api/documents/extract` — compatible multipart contract with **`protein-chain-bd/scripts/veridyn-ocr-service/`** (Docker + native Tesseract) when you need parity; **this deployment** favors Vercel + `tesseract.js`.
-- **Runtime**: Production build targets **Vercel** (`tesseract.js` WASM for images). Scanned PDFs should be exported to images — text-layer PDF uses `pdf-parse`.
+- **OCR**: `POST /api/documents/extract` — compatible multipart contract with **`protein-chain-bd/scripts/veridyn-ocr-service/`** (Docker + native Tesseract) when you need parity. On Vercel, image and scanned-PDF OCR uses a configured Vertex, Gemini, or OpenRouter vision provider; the deployment does not fall back to Tesseract.
+- **Runtime**: Production targets **Vercel**. Text-layer PDFs use `pdf-parse`; non-Vercel runtimes may fall back to server-side `tesseract.js` for image OCR.
 - **Dialect**: `POST /api/dialect/analyze` — heuristic cue-matching ported from `factory-VERIDYN/ui/bengali-dialect-lab/`.
-- **Web UI**: `/` — dialect lab homepage (OCR → transcript → chips/samples/verdict). `/lab` redirects to `/`.
+- **Web UI**: `/` — unauthenticated integration/reference page. It does not call the bearer-protected APIs or receive an API key. `/lab` redirects to `/`.
 
 Documentation: **[docs/OCR_DIALECT_SERVICE.md](./docs/OCR_DIALECT_SERVICE.md)**
 
@@ -14,7 +14,7 @@ Documentation: **[docs/OCR_DIALECT_SERVICE.md](./docs/OCR_DIALECT_SERVICE.md)**
 ```powershell
 npm install
 npm run dev
-# http://localhost:3333 — UI uploads file
+# http://localhost:3333 — public integration/reference UI
 curl http://localhost:3333/api/health
 ```
 

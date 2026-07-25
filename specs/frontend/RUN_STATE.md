@@ -7,17 +7,17 @@
 - **Product:** veridyn-ocr (`saadmanhuq-code/veridyn-ocr-dialect-service`)
 - **Family:** DOC-GRAVITY (signature trust device: Document chain — uploaded by, source hash, permission, review status, audit event). Family design/kit NOT started (manifest §1 / §2 row 13).
 - **Residency/tier:** non-regulated. This is an OCR/dialect satellite service of the Veridyn product line; sole verified production consumer is ProteinChain (`VERIDYN_OCR_URL` / `VERIDYN_OCR_API_KEY`).
-- **Base branch:** `origin/main` @ `6963355` (this audit branch `task/veridyn-ocr-ff-phase15-wiring-audit` is off it).
+- **Base branch:** `origin/main` @ `ab643ad` (current branch `fix/veridyn-ocr-honesty`).
 - **Prior FF artifacts:** none (manifest §2 row 13 "none found"; verified directly in this worktree — no prior `RUN_STATE.md` / `UI_AUDIT.md` / `IA_SPEC.md` / `DESIGN.md`). This run bootstraps.
 
-## Frontend surface verdict (verified 2026-07-17)
+## Frontend surface verdict (verified 2026-07-25)
 
 The repo **does have a user-facing frontend surface** — this is **not** a queue-exit / vacuous-complete case.
 
-- `/` (`app/page.tsx`) — Bengali Dialect Lab homepage: OCR ingest → transcript → cue chips / regional samples → live dialect verdict; plus a batch phrase-eval panel. `"use client"` React component.
+- `/` (`app/page.tsx`) — unauthenticated integration/reference page with bundled cue chips and regional samples. Protected OCR/dialect APIs are documented but not called. `"use client"` React component.
 - `/lab` (`app/lab/page.tsx`) — server redirect to `/`.
 
-Everything else under `app/` is a JSON **API route** (the live backend the UI calls), not a screen. Full route map + per-route wiring evidence lives in [`UI_AUDIT.md`](./UI_AUDIT.md).
+Everything else under `app/` is a JSON **API route** for authenticated server-side consumers, not a screen. Full route map + per-route wiring evidence lives in [`UI_AUDIT.md`](./UI_AUDIT.md).
 
 ## Phase ledger (0–7 + AM-12 Phase 1.5)
 
@@ -26,25 +26,25 @@ Phase = session boundary (AM-1). Each phase commits its artifacts + this file in
 | Phase | Status | Artifact / evidence | Notes |
 |---|---|---|---|
 | 0 — Legacy freeze + bootstrap (AM-11) | NOT STARTED | — | Create `legacy/pre-factory` branch + `pre-factory-<date>` tag, push to GitLab + GitHub mirror, set protections. Not required for a docs-only Phase 1.5; mandatory before any Phase 6 rebuild MR. |
-| 1 — Route inventory (UI audit) | DONE (this run) | [`UI_AUDIT.md`](./UI_AUDIT.md) §"Route inventory" | Enumerated every route/view in current main: 2 UI screens + 7 API endpoints. |
-| **1.5 — Wiring-truth classification (AM-12)** | **COMPLETE (this run)** | [`UI_AUDIT.md`](./UI_AUDIT.md) §"Wiring Classification Table (Phase 1.5, AM-12)" | `/` = MIXED (primary content real-wired; cue chips + regional samples = static reference fixtures); `/lab` = redirect → `/`. No FIXTURE-ONLY routes. |
-| 2 — Domain mining / reference screens | NOT STARTED | — | AM-12 §2: any reference screen drawn from a FIXTURE-ONLY source must be recorded and may not promote to `client_ready=true` without re-verification. No FIXTURE-ONLY routes here to constrain Phase 2. |
+| 1 — Route inventory (UI audit) | DONE (refreshed 2026-07-25) | [`UI_AUDIT.md`](./UI_AUDIT.md) §"Route inventory" | Enumerated every route/view in the current fix branch: 2 UI screens + 7 API endpoints. |
+| **1.5 — Wiring-truth classification (AM-12)** | **UPDATED** | [`UI_AUDIT.md`](./UI_AUDIT.md) §"Wiring Classification Table (Phase 1.5, AM-12)" | `/` = FIXTURE-ONLY, intentionally labelled as a public reference surface; `/lab` = redirect → `/`. Protected APIs require server-held bearer auth. |
+| 2 — Domain mining / reference screens | NOT STARTED | — | `/` is recorded as FIXTURE-ONLY reference content and may not promote to `client_ready=true` without authenticated live-wiring proof. |
 | 3 — IA_SPEC / contracts | NOT STARTED | — | One contract per route/screen. |
 | 4 — Design direction | NOT STARTED | — | Blocked on DOC-GRAVITY family design (manifest §3.5). Builder = Kimi K3 per manifest §7.2.3. |
 | 5 — Kit | NOT STARTED | — | DOC-GRAVITY family domain components (e.g. `DocumentChain`) under shared kit; family kit not started. |
 | 6 — Rebuild | NOT STARTED | — | Docs-only phase; no screens rebuilt in this run. |
-| 7 — Engineering audits + verification | NOT STARTED | — | Includes AM-12 check 13 (live-wiring proof against real backend). The `/` route's primary paths are live-wired today, so check 13 is achievable once Phase 6 lands. |
+| 7 — Engineering audits + verification | NOT STARTED | — | A future interactive UI must prove user/session authorization and real backend variation without creating a public bearer-key relay. |
 
 ## Per-route build/verify ledger
 
 | Route | Wiring (Phase 1.5) | Built (Phase 6) | Verified (Phase 7 check 13) |
 |---|---|---|---|
-| `/` (Dialect Lab) | MIXED — primary content REAL-WIRED; cue chips + regional samples static reference fixtures | — | — |
+| `/` (Dialect Reference) | FIXTURE-ONLY — intentionally labelled public reference surface; no protected API calls | — | — |
 | `/lab` | redirect → `/` (no independent data path) | — | — |
 
 ## Open blockers
 
-- None for Phase 1.5 (docs-only, complete).
+- Interactive public API access is blocked pending a real user/session authentication and authorization design; a server-key-only proxy is unsafe.
 - Downstream (Phase 4–6) blocked on DOC-GRAVITY family design/kit, which itself awaits a proven family pilot (manifest §3.5).
 
 ## Next action
@@ -54,4 +54,4 @@ Phase 1.5 is **COMPLETE**. Next = **DOC-GRAVITY family lane** per manifest §3.5
 ## Adjacent findings (reported, not fixed — orchestrator-routed)
 
 - **Overclaimed consumer copy:** the `/` homepage and several route docstrings name "DataRoom, BDA, and Agentic" as consumers of `/api/phrase-eval` and `/api/facts/extract`. The product truth store records the **sole verified production consumer as ProteinChain**. Copy/claim issue, not a wiring classification matter — out of scope for this docs-only run; flagged for the product owner.
-- **Static fixture inputs are by design, not gaps:** the cue chips + RegSpeech12 regional samples (`lib/dialect-samples.ts`) are reference-phrase affordances, not primary content. Recorded as MIXED fixture elements in `UI_AUDIT.md`; no `WIRING_GAP_TICKETS.md` entry warranted (see that file).
+- **Bundled reference inputs are explicit:** cue chips + RegSpeech12 regional samples (`lib/dialect-samples.ts`) are labelled as reference material. `/` is recorded as FIXTURE-ONLY and the authenticated-interactivity gap is documented in `WIRING_GAP_TICKETS.md`.
