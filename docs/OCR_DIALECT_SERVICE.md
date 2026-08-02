@@ -1,12 +1,12 @@
 # OCR + dialect service
 
-Standalone **Next.js** deployment for autonomous document OCR (**not mocked** — WASM `tesseract.js` on typical image/PDF/text inputs) plus an optional Bengali **dialect cue** analyzer. Canonical prod: **`https://veridyn-ocr-dialect-service.vercel.app`**.
+Standalone **Next.js** deployment for autonomous document OCR plus an optional Bengali **dialect cue** analyzer. On Vercel, image and scanned-PDF OCR uses a configured Vertex, Gemini, or OpenRouter vision provider and does not fall back to Tesseract. Text-layer PDFs use `pdf-parse`; non-Vercel runtimes may use server-side `tesseract.js`. Canonical prod: **`https://veridyn-ocr-dialect-service.vercel.app`**.
 
 ## Product framing
 
 | Layer | Responsibility |
 |--------|----------------|
-| **Public UI (`/`)** | **Bengali Dialect Lab** — cue chips, RegSpeech-style regional samples, transcript, verdict panel. **Upload path runs real OCR first** and streams text into the transcript; dialect analyze is cue-based on whatever text is in the box (`POST /api/dialect/analyze`). |
+| **Public UI (`/`)** | Unauthenticated integration/reference surface. Cue chips and regional samples are bundled reference data; the page does not upload files, call protected APIs, or receive the service bearer key. |
 | **`/lab`** | Legacy path — **307/redirect to `/`** (everything lives on one page). |
 | **Private APIs** | `POST /api/documents/extract` (multipart file) · `POST /api/dialect/analyze` JSON body `{ "text": "…" }` · `GET /api/health`. |
 
@@ -110,6 +110,6 @@ async function extractOcr(base: string, buf: Uint8Array, filename: string, apiKe
 
 ## Operational notes
 
-- **Multi-page raster PDF**: WASM path may degrade vs Docker sidecar (`protein-chain-bd/scripts/veridyn-ocr-service`). For maximal parity deploy that sidecar and point **`VERIDYN_OCR_URL`** at it.
-- **Warm latency**: first WASM OCR may download language blobs; retries are acceptable.
+- **Multi-page raster PDF**: Vercel renders up to the configured page limit and sends the images through the configured vision provider. For native-Tesseract parity, deploy the Docker sidecar (`protein-chain-bd/scripts/veridyn-ocr-service`) and point **`VERIDYN_OCR_URL`** at it.
+- **Warm latency**: vision-provider latency and availability apply on Vercel; non-Vercel `tesseract.js` workers have their own first-use warm-up cost.
 - **`OCR_CORS_ORIGINS`** (comma-separated allowlist) on this service scopes browser CORS and **fails closed**: a matching request origin is reflected into `Access-Control-Allow-Origin`, unlisted origins get no grant, and the default is empty (no wildcard). Set `*` only to deliberately allow any browser origin. Server-to-server calls do not rely on CORS.

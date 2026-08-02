@@ -1,8 +1,8 @@
 # UI_AUDIT — veridyn-ocr
 
 > Frontend Factory Phase 1 (route inventory) + Phase 1.5 (AM-12 Wiring-Truth Gate).
-> Evidence is read against `origin/main` @ `6963355` in worktree
-> `task/veridyn-ocr-ff-phase15-wiring-audit`. Every classification cites `file:line`;
+> Evidence was refreshed on 2026-07-25 in `fix/veridyn-ocr-honesty`, based on
+> `origin/main` @ `ab643ad`. Every classification cites `file:line`;
 > nothing is assumed (AM-12: UNRESOLVED-with-reason is the only allowed non-evidence state).
 
 ## Surface summary
@@ -10,19 +10,19 @@
 The repo **has** a user-facing frontend surface — a single Bengali Dialect Lab page
 served by Next.js 15 App Router. It is **not** a queue-exit / vacuous-complete case.
 
-- One substantive UI screen: `/` (OCR → transcript → cue chips / regional samples → dialect verdict; plus a batch phrase-eval panel).
+- One substantive UI screen: `/` (public integration guidance plus bundled cue chips / regional samples).
 - One redirect screen: `/lab` → `/`.
-- Seven JSON **API routes** under `/api/*` — these are the live backend the UI calls, not screens; they are traced *to*, not classified as wiring targets.
+- Seven JSON **API routes** under `/api/*` — these are bearer-protected integration endpoints, not screens. The unauthenticated public UI does not call them.
 
-All `mock` / `fixture` / `MOCK_` / `demo` references in the repo are confined to **test files** (`*.test.ts`) — verified by grep. The production runtime path has **no fixture fallback** (README: "OCR is never mocked on this deployment"; image-intent / voice endpoints return an honest `fallback: true` / `vision_keys_required` flag when no vendor key is configured — a service-degradation signal, not fake content).
+No protected API route silently substitutes bundled output. The public page intentionally imports `lib/dialect-samples.ts`, labels its content as bundled reference data, and makes no claim that those values came from OCR or dialect execution. Image-intent / voice endpoints return an explicit `fallback: true` / `vision_keys_required` signal when no vendor key is configured.
 
-## Route inventory (CURRENT main)
+## Route inventory (current fix branch)
 
 UI routes / views / screens:
 
 | Route | File | Method / kind | Surface |
 |---|---|---|---|
-| `/` | `app/page.tsx` | `"use client"` page | Dialect Lab homepage — the only substantive UI. Three interactive panels: ① document OCR → transcript; ② transcript + cue chips / regional samples → dialect verdict; ③ batch phrase-eval. |
+| `/` | `app/page.tsx` | `"use client"` page | Public integration/reference page. Bundled cue phrases can be loaded locally; protected OCR, dialect, and batch APIs are documented but not called. |
 | `/lab` | `app/lab/page.tsx` | server component | `redirect("/")` (legacy path; primary UI moved to `/`). |
 
 API routes (live backend — data sources, not screens):
@@ -45,23 +45,23 @@ Definitions (AM-12 §1): **REAL-WIRED** = primary content fetched from a live ba
 
 | Route | Classification | Evidence (file:line of the data path) | If MIXED: which elements are fixture |
 |---|---|---|---|
-| `/` (Dialect Lab) | **MIXED** | Primary content is real-wired via client `fetch()` calls: ① OCR transcript + facts — `app/page.tsx:137` (`fetch("/api/documents/extract")`) → `extractDocumentPayload` at `app/api/documents/extract/route.ts:40` (real OCR engine, `lib/extract-document.ts:5`); ② dialect verdict (score/status/label/region/cue/source) — `app/page.tsx:91` (`fetch("/api/dialect/analyze")`) → `inferDialectFromText` at `app/api/dialect/analyze/route.ts:28` (real cue engine, `lib/dialect.ts`); ③ batch phrase-eval table — `app/page.tsx:69` (`fetch("/api/phrase-eval")`) → per-phrase `inferDialectFromText` at `app/api/phrase-eval/route.ts:77-82`. No fixture fallback in any production code path. | **Static reference-phrase affordances rendered from `lib/dialect-samples.ts`:** cue chips (`app/page.tsx:305-310`, import at `:5`; source `lib/dialect-samples.ts:12-45`), regional sample cards (`app/page.tsx:344-353`; source `lib/dialect-samples.ts:47-102`, several `source: "RegSpeech12"`), and dialect dropdown options (`app/page.tsx:316-320`; source `lib/dialect-samples.ts:104-113`). These are **input quick-fill / reference phrases**, not primary content — the transcript, verdict, and batch results are always live-computed. Fixtures are by design, not wiring gaps. |
+| `/` (Dialect Reference) | **FIXTURE-ONLY (intentional public reference surface)** | `app/page.tsx` contains no `fetch()` and explicitly states that the bearer-protected OCR/dialect routes are unavailable from the unauthenticated browser. Cue chips, samples, and reference metadata come from `lib/dialect-samples.ts`; there is no live verdict or OCR result. A server-side bridge was rejected because, without user authentication, it would expose the protected service through a public relay. | All rendered phrase/dialect metadata is bundled reference data. The page labels it as reference data and labels API panels `Server auth required`; it does not masquerade as live output. |
 | `/lab` | **REDIRECT → `/`** | `app/lab/page.tsx:5` (`redirect("/")`). No independent data path. | — (inherits `/`). |
 
-**FIXTURE-ONLY routes:** none. The two UI routes do not render primary content from fixtures. The `/` route's only fixture elements are reference-phrase affordances (above); no route is FIXTURE-ONLY, so none are filed in [`WIRING_GAP_TICKETS.md`](./WIRING_GAP_TICKETS.md).
+**FIXTURE-ONLY routes:** `/` is intentionally reference-only and is recorded in [`WIRING_GAP_TICKETS.md`](./WIRING_GAP_TICKETS.md). `/lab` redirects to it. The classification is an explicit security boundary, not a claim that protected API output is available publicly.
 
 ### Method note (AM-12 §1)
 
-The `/` page is a `"use client"` component with **no server-side data loader** — every datum is produced by a user-triggered `fetch()` to a live `/api/*` route. There is no `getX() → hardcoded demo value` pattern (the exact failure mode AM-12 was written for, e.g. Agentic's `getOrganization() → shonaliGarments`). The static `dialectCueCatalog()` inside `lib/dialect.ts` is the cue engine's **classification knowledge base** (the phrases the heuristic scores against), analogous to a model's vocabulary — it is not "demo content rendered to the user"; the rendered verdict is computed live from the submitted text against that catalog.
+The `/` page is a `"use client"` component with **no server-side data loader and no browser API calls**. Its bundled phrase catalog is visibly labelled as reference material. Live OCR and dialect results are available only to authenticated server-side consumers of the protected routes.
 
 ## Predict-then-compare proof ledger (HARD_RULES)
 
 | proof_id | command_or_probe | expected_result | expectation_reason | actual_result | comparison | evidence_ref | mismatch_disposition |
 |---|---|---|---|---|---|---|---|
 | P1 | `git ls-tree -r --name-only HEAD \| grep app/` | 2 UI files (`page.tsx`, `lab/page.tsx`) + `layout.tsx` + `globals.css` + 7 API route.ts | Next App Router; README names only `/` and `/lab` | exactly those | MATCH | this doc §"Route inventory" | — |
-| P2 | `grep -rniE "mock\|fixture\|MOCK_\|demo" app lib` (excl. `//`) | hits only in `*.test.ts` | README asserts OCR never mocked; engines are real | all hits in `lib/*.test.ts` (audio-stt, dialect-classifier, integrity-auth-coverage) | MATCH | this doc §"Surface summary"; RUN_STATE.md adjacent findings | — |
-| P3 | trace `/` primary content data path | every primary panel reaches a live `/api/*` call, no bundled fixture behind it | AM-12 REAL-WIRED test: parameterized by real input reaching a live endpoint | OCR→`/api/documents/extract` (:137); dialect→`/api/dialect/analyze` (:91); batch→`/api/phrase-eval` (:69) | MATCH | Wiring table row `/` | — |
-| P4 | classify `/` per AM-12 | MIXED (primary real; fixture elements = reference-phrase inputs only) | cue chips + regional samples render static `lib/dialect-samples.ts`, so ≥1 element is not real-wired → MIXED, not pure REAL-WIRED | MIXED, fixture elements enumerated | MATCH | Wiring table row `/` | — |
-| P5 | enumerate FIXTURE-ONLY routes | none | no route renders primary content from a fixture | 0 FIXTURE-ONLY | MATCH | this doc + `WIRING_GAP_TICKETS.md` | — |
+| P2 | trace bundled page data | every bundled value is labelled as reference data, never as API output | the public route intentionally does not authenticate | cue/sample imports at `app/page.tsx:5`; `No API call` at `:92`; reference rendering at `:111-157` | MATCH | this doc §"Surface summary"; `lib/public-ui-honesty.test.ts` | — |
+| P3 | trace `/` primary content data path | no protected `/api/*` request is reachable from the unauthenticated page | The page has no user authentication, so a server-key bridge would create a public relay | no `fetch()` in `app/page.tsx`; API panels say `Server auth required` | MATCH | Wiring table row `/` | — |
+| P4 | classify `/` per AM-12 | FIXTURE-ONLY, explicitly labelled as reference material | all rendered phrase and dialect metadata comes from `lib/dialect-samples.ts` | FIXTURE-ONLY (intentional reference surface) | MATCH | Wiring table row `/` | — |
+| P5 | enumerate FIXTURE-ONLY routes | `/` only; `/lab` redirects to it | the public page intentionally renders bundled reference data and no protected output | 1 FIXTURE-ONLY route | MATCH | this doc + `WIRING_GAP_TICKETS.md` | — |
 
 Both mismatch directions treated as suspicious: none occurred. No terminal PASS is claimed on a mismatch.
