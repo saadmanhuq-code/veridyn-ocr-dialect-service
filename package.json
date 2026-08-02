@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/generate-build-info.mjs --allow-dirty",
     "dev": "next dev -p 3333",
+    "prebuild": "node scripts/generate-build-info.mjs",
     "build": "next build",
     "start": "next start -p 3333",
+    "prelint": "node scripts/generate-build-info.mjs --allow-dirty",
     "lint": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
+    "pretest": "node scripts/generate-build-info.mjs --allow-dirty",
     "test": "node --import tsx --test \"lib/**/*.test.ts\"",
+    "test:built-health": "node --test scripts/verify-built-health.test.mjs",
     "test:gate": "node --import tsx --test \"lib/integrity-auth-coverage.test.ts\""
   },
   "dependencies": {

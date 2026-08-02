@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { BUILD_COMMIT_SHA } from "@/lib/generated-build-info";
 import { corsHeaders } from "@/lib/cors";
 import { getOcrWorker } from "@/lib/ocr-engine";
 import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
@@ -10,7 +11,8 @@ export const maxDuration = 60;
 
 // Deploy-identity binding: lets a caller (or the orchestrator's remote-truth
 // probes) confirm WHICH build is actually serving traffic, not just that
-// *some* build responds 200. runtime_sha is null outside Vercel (local dev).
+// *some* build responds 200. The generated fallback is captured before every
+// build/test/typecheck and makes missing deploy identity a build failure.
 const CONTRACT_VERSION = pkg.version;
 
 export function OPTIONS(req: NextRequest) {
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
       ocrWarm = e instanceof Error ? e.message : "failed";
     }
   }
-  const runtimeSha = process.env.VERCEL_GIT_COMMIT_SHA || null;
+  const runtimeSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim() || BUILD_COMMIT_SHA;
   return NextResponse.json(
     {
       ok: true,
