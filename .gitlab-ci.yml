@@ -8,5 +8,4 @@
 # Tier 2 review/promotion dispatch. See https://gitlab.com/ss-group3592724/gate.
 include:
   - project: ss-group3592724/gate
-    ref: fix/51-scripts-lock-bridge-inputs
     file: ci.yml
