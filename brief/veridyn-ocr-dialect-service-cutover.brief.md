@@ -58,7 +58,14 @@ Head commit (this branch, after the API calls and file changes in this MR):
 
 ## Still open (out of this worktree's scope)
 
+- **ss-group3592724/gate#82** — the gate's `scripts-lock` cross-project trigger bridge fails
+  against gate `main` for a live, external, reproducible reason unrelated to this product (full
+  evidence, an isolating control, and a corrected-after-a-wrong-attempt finding are on the
+  issue). Check 2 above stays red until this is fixed on the gate side; this repo's own
+  configuration is otherwise correct and unchanged from that point forward.
 - Toolbox MR in `operator-os`: remove this product from the GitHub-to-GitLab mirror script list,
   and record its live version endpoint (`https://veridyn-ocr-dialect-service.vercel.app`, see
   `/api/health`) in `scripts/daily-brief/roster.json`. Requires editing a different repository;
   lane rule 1 restricts this worktree to `C:\wt\veridyn-ocr-lane51`.
+- GitHub Actions disable + GitLab push mirror: held until check 2 is actually green, per the
+  lane's own sequencing.

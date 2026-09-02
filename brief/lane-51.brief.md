@@ -87,7 +87,19 @@ fallback brief, authored manually.
 
 ## Still open / out of this worktree's scope
 
+- **ss-group3592724/gate#82** — a real, live, external gate defect (the `scripts-lock`
+  cross-project trigger bridge fails against gate `main`, despite issue #36 being marked closed)
+  blocks this MR's pipeline from reaching a successful `ci` job. Reproduced identically on an
+  independent product (veridyn-bootstrap MR !1); isolated with a control (identical `inputs`
+  succeed via a direct API call). A candidate fix was tried (draft gate!30, dropping
+  `inherit: variables: false`) and correctly rejected by gate's own Tier 1 test suite as an
+  unrelated security-boundary regression — closed, and gate#82 left open with the corrected
+  finding for whoever picks it up next. This lane's own rules (worktree scope) do not extend to
+  debugging GitLab platform internals indefinitely from a product repo; check 2 of this lane's
+  acceptance checks stays red until gate#82 is actually fixed.
 - Toolbox MR in `operator-os` removing this product from the GitHub-to-GitLab mirror script
   list, and recording its live version endpoint in `scripts/daily-brief/roster.json`. Both
   require editing a different repository than this worktree, which lane rule 1 ("work only
   inside this worktree") does not authorize from here. Flagged for a follow-up toolbox lane.
+- GitHub Actions disable + GitLab push mirror: held deliberately until this MR's pipeline is
+  green through the gate, per the lane's own sequencing ("when main is green through the gate").
