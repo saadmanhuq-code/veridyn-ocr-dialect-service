@@ -1,20 +1,11 @@
-# GitLab CI — proof gate while GitHub Actions are disabled by operator policy.
-# GitHub = source/PR authority; GitLab = CI/proof. This repo is a pull-mirror of
-# github.com/saadmanhuq-code/veridyn-ocr-dialect-service (mirror_trigger_builds=true).
-# Runs on the self-hosted oracle-vm (arm64) runner — $0 compute, no GitLab.com SaaS minutes.
-stages:
-  - test
-
-test:
-  stage: test
-  image: node:24-bookworm
-  tags: [oracle-vm]
-  script:
-    - node --version && npm --version
-    # npm test = `node --import tsx --test "lib/**/*.test.ts"` — runs the full lib unit suite,
-    # including the integrity gate lib/integrity-auth-coverage.test.ts (was inert: no CI path).
-    - npm ci
-    - npm test
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
+# Cutover (lane #51, ss-group3592724/gate): this project's actual pipeline source of truth is
+# now the GitLab project setting CI/CD > General pipelines > "CI/CD configuration file" =
+# ci_config_path=ci.yml@ss-group3592724/gate, so a merge request into this repo cannot weaken the
+# gate that grades it. This local file is left only as a documentation pointer to that fact — a
+# reader who opens the repo without checking project settings still sees where CI comes from.
+# The gate's ci.yml includes products/veridyn-ocr-dialect-service.yml (job `ci`: npm ci && npm
+# test, this product's own test command, unchanged) plus the scripts-lock guard, brief checks and
+# Tier 2 review/promotion dispatch. See https://gitlab.com/ss-group3592724/gate.
+include:
+  - project: ss-group3592724/gate
+    file: ci.yml
