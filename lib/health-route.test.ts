@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 
 import { GET } from "../app/api/health/route.js";
+import { resolveRuntimeSha } from "@/lib/health-identity";
 import { BUILD_COMMIT_SHA } from "@/lib/generated-build-info";
 import pkg from "@/package.json";
 
@@ -49,5 +50,35 @@ test("health route: commit_sha reflects VERCEL_GIT_COMMIT_SHA when set (deploy i
   } finally {
     if (previous === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
     else process.env.VERCEL_GIT_COMMIT_SHA = previous;
+  }
+});
+
+test("resolveRuntimeSha: prefers the first non-empty candidate in priority order", () => {
+  assert.equal(
+    resolveRuntimeSha(["  ", undefined, "build-time-sha", "should-not-be-reached"]),
+    "build-time-sha",
+  );
+});
+
+test("resolveRuntimeSha: falls back to explicit 'unknown' only when every candidate is empty/unset", () => {
+  assert.equal(resolveRuntimeSha([undefined, null, "", "   "]), "unknown");
+  assert.equal(resolveRuntimeSha([]), "unknown");
+});
+
+test("health route: GIT_COMMIT_SHA (build-time env) is used when VERCEL_GIT_COMMIT_SHA is unset", async () => {
+  const previousVercel = process.env.VERCEL_GIT_COMMIT_SHA;
+  const previousGit = process.env.GIT_COMMIT_SHA;
+  delete process.env.VERCEL_GIT_COMMIT_SHA;
+  process.env.GIT_COMMIT_SHA = "build-env-sha-1234567";
+  try {
+    const res = await GET(new NextRequest("http://localhost/api/health"));
+    const body = await res.json();
+    assert.equal(body.runtime_sha, "build-env-sha-1234567");
+    assert.equal(body.commit_sha, "build-env-sha-1234567");
+  } finally {
+    if (previousVercel === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA;
+    else process.env.VERCEL_GIT_COMMIT_SHA = previousVercel;
+    if (previousGit === undefined) delete process.env.GIT_COMMIT_SHA;
+    else process.env.GIT_COMMIT_SHA = previousGit;
   }
 });

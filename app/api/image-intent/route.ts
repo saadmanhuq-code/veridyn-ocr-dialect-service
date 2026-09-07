@@ -24,7 +24,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireApiKey } from "@/lib/auth";
+import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { analyzeImageIntent } from "@/lib/image-intent";
 import { appendCorpusEvent, contentHash } from "@/lib/corpus-log";
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
+  const consumer = resolveConsumer(req.headers);
 
   let formData: FormData;
   try {
@@ -125,5 +126,5 @@ export async function POST(req: NextRequest) {
     consent: true,
   });
 
-  return NextResponse.json(result, { headers: corsHeaders(origin) });
+  return NextResponse.json(result, { headers: withConsumerHeader(corsHeaders(origin), consumer) });
 }

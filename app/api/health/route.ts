@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { BUILD_COMMIT_SHA } from "@/lib/generated-build-info";
 import { corsHeaders } from "@/lib/cors";
+import { resolveRuntimeSha } from "@/lib/health-identity";
 import { getOcrWorker } from "@/lib/ocr-engine";
 import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
 import pkg from "@/package.json";
@@ -36,7 +37,11 @@ export async function GET(req: NextRequest) {
       ocrWarm = e instanceof Error ? e.message : "failed";
     }
   }
-  const runtimeSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim() || BUILD_COMMIT_SHA;
+  const runtimeSha = resolveRuntimeSha([
+    process.env.VERCEL_GIT_COMMIT_SHA,
+    process.env.GIT_COMMIT_SHA,
+    BUILD_COMMIT_SHA,
+  ]);
   return NextResponse.json(
     {
       ok: true,

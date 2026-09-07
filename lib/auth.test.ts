@@ -1,7 +1,14 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { requireApiKey } from "./auth";
+import {
+  requireApiKey,
+  resolveConsumer,
+  parseConsumerKeys,
+  withConsumerHeader,
+  LEGACY_CONSUMER,
+  CONSUMER_HEADER,
+} from "./auth";
 
 // process.env.NODE_ENV is typed as a read-only literal union; cast to a mutable
 // record so tests can simulate dev / production / preview postures.
@@ -24,6 +31,7 @@ let savedNext: string | undefined;
 let savedNodeEnv: string | undefined;
 let savedVercel: string | undefined;
 let savedAllowUnauthed: string | undefined;
+let savedConsumerKeys: string | undefined;
 
 beforeEach(() => {
   savedKey = process.env.VERIDYN_OCR_API_KEY;
@@ -31,8 +39,10 @@ beforeEach(() => {
   savedNodeEnv = process.env.NODE_ENV;
   savedVercel = process.env.VERCEL;
   savedAllowUnauthed = process.env.VERIDYN_OCR_ALLOW_UNAUTHENTICATED;
+  savedConsumerKeys = process.env.VERIDYN_OCR_CONSUMER_KEYS;
   delete process.env.VERIDYN_OCR_API_KEY;
   delete process.env.VERIDYN_OCR_API_KEY_NEXT;
+  delete process.env.VERIDYN_OCR_CONSUMER_KEYS;
   // Default to the local-dev posture (not on Vercel, not a production build).
   // VERIDYN_OCR_ALLOW_UNAUTHENTICATED is NOT set by default — bypass now
   // requires explicit opt-in, so tests must set it where they need bypass behavior.
@@ -53,6 +63,8 @@ afterEach(() => {
     delete process.env.VERIDYN_OCR_ALLOW_UNAUTHENTICATED;
   else
     process.env.VERIDYN_OCR_ALLOW_UNAUTHENTICATED = savedAllowUnauthed;
+  if (savedConsumerKeys === undefined) delete process.env.VERIDYN_OCR_CONSUMER_KEYS;
+  else process.env.VERIDYN_OCR_CONSUMER_KEYS = savedConsumerKeys;
 });
 
 test("rotation window: OLD key authorizes when both keys are set", () => {
@@ -164,4 +176,125 @@ test("key configured on Vercel: valid key still authorizes", () => {
   setNodeEnv("production");
   process.env.VERIDYN_OCR_API_KEY = OLD_KEY;
   assert.equal(requireApiKey(reqWith(OLD_KEY)), null);
+});
+
+// --- Per-consumer credentials (lane #23) ---
+
+const PROTEINCHAIN_KEY = "pc-consumer-key-aaaaaaaaaaaaaaaa";
+const DATAROOM_KEY = "dr-consumer-key-bbbbbbbbbbbbbbbb";
+
+test("parseConsumerKeys: parses the JSON object form", () => {
+  const parsed = parseConsumerKeys(
+    JSON.stringify({ proteinchain: PROTEINCHAIN_KEY, dataroom: DATAROOM_KEY }),
+  );
+  assert.equal(parsed.get("proteinchain"), PROTEINCHAIN_KEY);
+  assert.equal(parsed.get("dataroom"), DATAROOM_KEY);
+  assert.equal(parsed.size, 2);
+});
+
+test("parseConsumerKeys: parses the comma-separated name:key list form", () => {
+  const parsed = parseConsumerKeys(
+    `proteinchain:${PROTEINCHAIN_KEY},dataroom:${DATAROOM_KEY}`,
+  );
+  assert.equal(parsed.get("proteinchain"), PROTEINCHAIN_KEY);
+  assert.equal(parsed.get("dataroom"), DATAROOM_KEY);
+  assert.equal(parsed.size, 2);
+});
+
+test("parseConsumerKeys: unset/blank input yields an empty map, never throws", () => {
+  assert.equal(parseConsumerKeys(undefined).size, 0);
+  assert.equal(parseConsumerKeys(null).size, 0);
+  assert.equal(parseConsumerKeys("").size, 0);
+  assert.equal(parseConsumerKeys("   ").size, 0);
+});
+
+test("parseConsumerKeys: malformed entries are skipped individually, not fatal", () => {
+  const parsed = parseConsumerKeys(`not-a-pair,proteinchain:${PROTEINCHAIN_KEY},:orphan-key`);
+  assert.equal(parsed.get("proteinchain"), PROTEINCHAIN_KEY);
+  assert.equal(parsed.size, 1);
+});
+
+test("two named consumers with distinct keys both authenticate", () => {
+  process.env.VERIDYN_OCR_CONSUMER_KEYS = JSON.stringify({
+    proteinchain: PROTEINCHAIN_KEY,
+    dataroom: DATAROOM_KEY,
+  });
+  assert.equal(requireApiKey(reqWith(PROTEINCHAIN_KEY)), null);
+  assert.equal(requireApiKey(reqWith(DATAROOM_KEY)), null);
+});
+
+test("two named consumers are attributed correctly via resolveConsumer", () => {
+  process.env.VERIDYN_OCR_CONSUMER_KEYS = JSON.stringify({
+    proteinchain: PROTEINCHAIN_KEY,
+    dataroom: DATAROOM_KEY,
+  });
+  assert.equal(resolveConsumer(reqWith(PROTEINCHAIN_KEY)), "proteinchain");
+  assert.equal(resolveConsumer(reqWith(DATAROOM_KEY)), "dataroom");
+});
+
+test("revoking one consumer's key rejects only that consumer, others unaffected", () => {
+  process.env.VERIDYN_OCR_CONSUMER_KEYS = JSON.stringify({
+    proteinchain: PROTEINCHAIN_KEY,
+    dataroom: DATAROOM_KEY,
+  });
+  assert.equal(requireApiKey(reqWith(PROTEINCHAIN_KEY)), null);
+  assert.equal(requireApiKey(reqWith(DATAROOM_KEY)), null);
+
+  // Operator revokes "dataroom" by removing its entry — proteinchain is untouched.
+  process.env.VERIDYN_OCR_CONSUMER_KEYS = JSON.stringify({
+    proteinchain: PROTEINCHAIN_KEY,
+  });
+
+  assert.equal(requireApiKey(reqWith(PROTEINCHAIN_KEY)), null);
+  const revoked = requireApiKey(reqWith(DATAROOM_KEY));
+  assert.notEqual(revoked, null);
+  assert.equal(revoked!.status, 401);
+});
+
+test("legacy shared key still works alongside named consumer keys during migration", () => {
+  process.env.VERIDYN_OCR_API_KEY = OLD_KEY;
+  process.env.VERIDYN_OCR_CONSUMER_KEYS = JSON.stringify({
+    proteinchain: PROTEINCHAIN_KEY,
+  });
+  assert.equal(requireApiKey(reqWith(OLD_KEY)), null);
+  assert.equal(resolveConsumer(reqWith(OLD_KEY)), LEGACY_CONSUMER);
+  assert.equal(requireApiKey(reqWith(PROTEINCHAIN_KEY)), null);
+  assert.equal(resolveConsumer(reqWith(PROTEINCHAIN_KEY)), "proteinchain");
+});
+
+test("no key or a wrong key is rejected even when consumer keys are configured", () => {
+  process.env.VERIDYN_OCR_CONSUMER_KEYS = JSON.stringify({
+    proteinchain: PROTEINCHAIN_KEY,
+  });
+  const missing = requireApiKey(reqWith(null));
+  assert.notEqual(missing, null);
+  assert.equal(missing!.status, 401);
+
+  const wrong = requireApiKey(reqWith("totally-wrong-key"));
+  assert.notEqual(wrong, null);
+  assert.equal(wrong!.status, 401);
+});
+
+test("only named consumer keys configured (no legacy key): fail-closed check is satisfied", () => {
+  // Configuring only VERIDYN_OCR_CONSUMER_KEYS (no legacy VERIDYN_OCR_API_KEY)
+  // must not trip the "no credentials configured" 403 fail-closed path.
+  process.env.VERIDYN_OCR_CONSUMER_KEYS = JSON.stringify({
+    proteinchain: PROTEINCHAIN_KEY,
+  });
+  const res = requireApiKey(reqWith(PROTEINCHAIN_KEY));
+  assert.equal(res, null);
+});
+
+test("resolveConsumer: null when no bearer token, null when no match, never throws", () => {
+  assert.equal(resolveConsumer(reqWith(null)), null);
+  process.env.VERIDYN_OCR_API_KEY = OLD_KEY;
+  assert.equal(resolveConsumer(reqWith("something-else")), null);
+});
+
+test("withConsumerHeader: adds the attribution header only when a consumer is resolved", () => {
+  const base = { "Content-Type": "application/json" };
+  assert.equal(withConsumerHeader(base, "proteinchain")[CONSUMER_HEADER], "proteinchain");
+  assert.equal(withConsumerHeader(base, null)[CONSUMER_HEADER], undefined);
+  // Original object is not mutated.
+  assert.equal(CONSUMER_HEADER in base, false);
 });

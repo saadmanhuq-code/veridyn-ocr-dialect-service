@@ -32,7 +32,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireApiKey } from "@/lib/auth";
+import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { transcribeViaBest } from "@/lib/audio-stt";
 import { normaliseBn, tagScriptMix } from "@/lib/bn-normalize";
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
+  const consumer = resolveConsumer(req.headers);
 
   let audioBytes: Buffer;
   let mimeType: string;
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
   const sttResult = await transcribeViaBest(audioBytes, mimeType);
 
   if ("fallback" in sttResult && sttResult.fallback) {
-    return NextResponse.json({ fallback: true }, { headers: corsHeaders(origin) });
+    return NextResponse.json({ fallback: true }, { headers: withConsumerHeader(corsHeaders(origin), consumer) });
   }
 
   const result = sttResult as Exclude<typeof sttResult, { fallback: true }>;
@@ -203,6 +204,6 @@ export async function POST(req: NextRequest) {
       },
       fallback: false,
     },
-    { headers: corsHeaders(origin) },
+    { headers: withConsumerHeader(corsHeaders(origin), consumer) },
   );
 }

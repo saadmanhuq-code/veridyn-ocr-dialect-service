@@ -66,13 +66,42 @@ to the primary key after all consumers are cut over.
 - Keep real key values in the secure operator stash or deployment secrets, never
   in git.
 
+### Per-consumer keys (`VERIDYN_OCR_CONSUMER_KEYS`)
+
+Six-plus production consumers sharing one static key means rotating it breaks
+everyone at once and there is no way to cut off a single compromised or
+offboarded consumer. `VERIDYN_OCR_CONSUMER_KEYS` gives each consumer its own
+scoped, individually revocable credential, accepted **alongside** the legacy
+`VERIDYN_OCR_API_KEY` / `_NEXT` during migration:
+
+```
+VERIDYN_OCR_CONSUMER_KEYS={"proteinchain":"<key-a>","dataroom":"<key-b>"}
+# or the equivalent list form:
+VERIDYN_OCR_CONSUMER_KEYS=proteinchain:<key-a>,dataroom:<key-b>
+```
+
+- **Issue**: generate a fresh secret per consumer, add its `name: key` entry,
+  redeploy, hand the consumer only its own key.
+- **Revoke**: remove that consumer's entry and redeploy. This does not touch
+  any other named consumer's entry or the legacy key — revocation is scoped
+  to the one entry removed.
+- **Attribution**: every authenticated request logs its resolved consumer
+  name (`legacy` for the shared key) and returns it in the
+  `x-veridyn-consumer` response header, so per-consumer traffic and abuse can
+  be told apart without per-consumer rate limiting being implemented yet.
+- The legacy shared key keeps working until an operator removes it — this is
+  additive, not a breaking rotation.
+
 ---
 
 ## API reference
 
 ### `GET /api/health`
 
-Runtime probe.
+Runtime probe. Includes `commit_sha` (also mirrored as `runtime_sha`) — the
+deployed Vercel commit SHA, falling back to a build-time git/CI SHA, then the
+literal string `"unknown"` if neither is available — so a remote identity
+probe can always tell which build is serving traffic.
 
 ### `POST /api/documents/extract`
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireApiKey } from "@/lib/auth";
+import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { DocumentIntakeError, extractDocumentPayload } from "@/lib/extract-document";
 
@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
+  const consumer = resolveConsumer(req.headers);
 
   let formData: FormData;
   try {
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(arrayBuf);
   try {
     const payload = await extractDocumentPayload(raw.name || "upload", buffer, language);
-    return NextResponse.json(payload, { headers: corsHeaders(origin) });
+    return NextResponse.json(payload, { headers: withConsumerHeader(corsHeaders(origin), consumer) });
   } catch (e) {
     if (e instanceof DocumentIntakeError) {
       return NextResponse.json({ detail: e.message }, { status: 400, headers: corsHeaders(origin) });

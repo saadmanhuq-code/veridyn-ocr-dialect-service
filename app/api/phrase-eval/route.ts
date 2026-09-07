@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireApiKey } from "@/lib/auth";
+import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { inferDialectFromText, normalizeBn, DIALECT_SUGGESTION_FLOOR } from "@/lib/dialect";
 
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
+  const consumer = resolveConsumer(req.headers);
 
   let body: unknown;
   try {
@@ -87,6 +88,6 @@ export async function POST(req: NextRequest) {
       suggestion_floor: DIALECT_SUGGESTION_FLOOR,
       results,
     },
-    { headers: corsHeaders(origin) },
+    { headers: withConsumerHeader(corsHeaders(origin), consumer) },
   );
 }
