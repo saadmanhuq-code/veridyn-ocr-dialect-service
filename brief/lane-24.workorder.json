@@ -3,6 +3,7 @@
   "kind": "DEVELOPER_INTENT",
   "files": [
     "app/api/health/route.ts",
+    "lib/health-identity.ts",
     "lib/health-route.test.ts",
     "lib/auth.ts",
     "lib/auth.test.ts",
