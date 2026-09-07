@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "kind": "DEVELOPER_INTENT",
+  "files": [
+    "app/api/health/route.ts",
+    "lib/health-route.test.ts",
+    "lib/auth.ts",
+    "lib/auth.test.ts",
+    "lib/consumer-attribution.test.ts",
+    "app/api/dialect/analyze/route.ts",
+    "app/api/documents/extract/route.ts",
+    "app/api/facts/extract/route.ts",
+    "app/api/image-intent/route.ts",
+    "app/api/phrase-eval/route.ts",
+    "app/api/voice/transcribe/route.ts",
+    "README.md",
+    "docs/OCR_DIALECT_SERVICE.md",
+    "brief/lane-24.workorder.json"
+  ],
+  "acceptance_checks": [
+    "node --import tsx --test lib/health-route.test.ts",
+    "node --import tsx --test lib/auth.test.ts lib/consumer-attribution.test.ts"
+  ],
+  "developer_intent": {
+    "schema_version": 1,
+    "status": "RESOLVED",
+    "developer_prompt": "#24 Veridyn OCR: /api/health does not expose a runtime commit SHA (anchor-probe can't verify identity)\n\nAnchor-probe evidence (portfolio-core state/products/veridyn-ocr.json live_probe.drift_warnings + quality_gate.latest, Minor, both consistent): https://veridyn-ocr-dialect-service.vercel.app/api/health returns healthy but does not expose a running commit SHA, so source/runtime alignment for this product cannot be machine-verified from the outside — every other product in the roster with a public URL exposes this. Given F-31 (see the sibling security fingerprint on this board), OCR is exactly the shared-blast-radius service where identity verification matters most.\n\nDone when: /api/health (or /api/version) returns a field carrying the deployed git commit SHA, and the anchor-probe drift warning for \"runtime sha unknown\" clears.\n\n---\n\n#23 Veridyn OCR: one shared static API key across six consumers, no per-consumer revocation\n\nSAAD-17 finding F-31 (2026-07-10, re-verify against current source before fixing): Veridyn OCR is a shared service with six production consumers, all authenticating through one shared static API key. Consequences: rotating the key breaks all six consumers simultaneously (no staged rollover), there is no per-consumer revocation (a compromised or offboarded consumer cannot be cut off individually), no per-consumer rate limiting, no per-consumer attribution in logs, and (per the same finding) a single cached OCR worker that can die and stay dead with no restart signal.\n\nOCR feeds the compliance/money-adjacent product surface (F-32 notes the intended OCR to Compliance integration), so a credential or availability incident here has portfolio-wide blast radius.\n\nDone when: each of the six consumers authenticates with its own scoped, individually revocable credential, revoking one consumer's key is proven not to affect the others (live test), and per-consumer request attribution appears in logs.",
+    "resolution": "hand-made lane; compiler unreachable on host Salvi",
+    "source_turn_ids": ["lane-24", "lane-23"],
+    "operator_authority_turn_ids": ["lane-24", "lane-23"],
+    "constraints": ["Builder-Family trailer on every commit", "no scripts/lockfile/CI changes", "no new dependencies"],
+    "non_goals": ["Do not merge", "Do not change production"],
+    "acceptance_intent": [
+      "lane 24: /api/health returns commit_sha/runtime_sha sourced from VERCEL_GIT_COMMIT_SHA, falling back to a build-time env (GIT_COMMIT_SHA), then the generated build-time SHA, then the literal string \"unknown\" only when nothing is set — never a missing field.",
+      "lane 23: the auth layer accepts a SET of named per-consumer credentials (VERIDYN_OCR_CONSUMER_KEYS, JSON object or name:key list) alongside the legacy single key during migration; each authenticated request is attributed to its consumer name in the request log and the x-veridyn-consumer response header; removing one consumer's entry rejects only that consumer, proven live against the running auth logic with the other consumer and the legacy key unaffected; a request with no key or the wrong key is rejected; README/docs document how to issue and revoke per-consumer keys.",
+      "lane 23 scope note: the six real production consumers still hold the legacy shared key at time of this change — issuing them individual VERIDYN_OCR_CONSUMER_KEYS entries and proving revocation against the live six is the operator's deployment step, not reproducible from this seat/host."
+    ],
+    "assumptions": [
+      "VERIDYN_OCR_CONSUMER_KEYS values are operator-managed secrets (Vercel project env vars); this change only adds the parsing/matching/attribution logic, not a secrets-issuance workflow.",
+      "The literal \"unknown\" SHA fallback in lane 24 is reachable only in the hypothetical case where VERCEL_GIT_COMMIT_SHA, GIT_COMMIT_SHA, and the build-time generated SHA are all absent; in normal Vercel/CI builds the generated SHA is always present."
+    ],
+    "ambiguities": [],
+    "user_only_question": null
+  },
+  "compiler": "hand-made",
+  "compiled_at_lane": 24,
+  "compiled_for_repo": "ss-group3592724/veridyn-ocr-dialect-service",
+  "compiler_result": "HAND_MADE",
+  "compiler_note": "Compiler at 127.0.0.1:37421 unreachable on host Salvi 2026-09-07; brief written by the seat from the Product Review v1 findings (lanes 24 and 23, same branch/MR per operator instruction)."
+}
