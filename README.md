@@ -55,6 +55,31 @@ explicit opt-in prevents fail-open on non-Vercel hosts (e.g. Docker on Oracle
 VM3) that omit the flag and have no keys configured. Promote `_NEXT` after all
 consumers are updated.
 
+**Per-consumer API keys (`VERIDYN_OCR_CONSUMER_KEYS`).** The single shared
+`VERIDYN_OCR_API_KEY` still works (attributed as consumer `legacy`), but new
+and migrating consumers should get their own individually revocable key
+instead of sharing one static secret. Set `VERIDYN_OCR_CONSUMER_KEYS` to
+either a JSON object or a comma-separated `name:key` list:
+
+```
+VERIDYN_OCR_CONSUMER_KEYS={"proteinchain":"<key-a>","dataroom":"<key-b>"}
+# or:
+VERIDYN_OCR_CONSUMER_KEYS=proteinchain:<key-a>,dataroom:<key-b>
+```
+
+- **Issue** a new consumer: generate a fresh random secret (e.g. `openssl rand
+  -hex 32`), add a `name: key` entry for it, redeploy, and hand the consumer
+  its own key (never reuse another consumer's key or the legacy key).
+- **Revoke** a consumer: delete its entry from `VERIDYN_OCR_CONSUMER_KEYS` and
+  redeploy. Every other named consumer, and the legacy key, keep working
+  unaffected — revocation is per-entry, not all-or-nothing.
+- Every authenticated request is attributed to its consumer name (or
+  `legacy` for the shared key) in the server log and in the
+  `x-veridyn-consumer` response header, so a compromised or offboarded
+  consumer can be identified and cut off individually.
+- Keep real key values in the secure operator stash or deployment secrets,
+  never in git — same rule as the legacy key.
+
 **CORS fails closed.** `OCR_CORS_ORIGINS` (comma-separated allowlist) controls
 which browser origins may make cross-origin calls. A matching origin is
 reflected into `Access-Control-Allow-Origin`; unlisted origins get no CORS

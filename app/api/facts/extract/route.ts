@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { requireApiKey } from "@/lib/auth";
+import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { buildDocumentFactCandidates } from "@/lib/document-facts";
 
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     Object.entries(corsHeaders(origin)).forEach(([k, v]) => authBlock.headers.set(k, v));
     return authBlock;
   }
+  const consumer = resolveConsumer(req.headers);
 
   let body: unknown;
   try {
@@ -80,6 +81,6 @@ export async function POST(req: NextRequest) {
       characters: raw.text.length,
       candidate_facts: candidateFacts,
     },
-    { headers: corsHeaders(origin) },
+    { headers: withConsumerHeader(corsHeaders(origin), consumer) },
   );
 }
