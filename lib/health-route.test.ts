@@ -11,7 +11,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 
-import { GET, resolveRuntimeSha } from "../app/api/health/route.js";
+import { GET } from "../app/api/health/route.js";
+import { resolveRuntimeSha } from "@/lib/health-identity";
 import { BUILD_COMMIT_SHA } from "@/lib/generated-build-info";
 import pkg from "@/package.json";
 
