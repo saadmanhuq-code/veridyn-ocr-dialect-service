@@ -7,7 +7,7 @@ Standalone OCR + dialect “catcher” service for Bangladesh-first workflows.
 - **Dialect**: `POST /api/dialect/analyze` — heuristic cue-matching ported from `factory-VERIDYN/ui/bengali-dialect-lab/`.
 - **Web UI**: `/` — unauthenticated integration/reference page. It does not call the bearer-protected APIs or receive an API key. `/lab` redirects to `/`.
 
-Documentation: **[docs/OCR_DIALECT_SERVICE.md](./docs/OCR_DIALECT_SERVICE.md)**
+Documentation: **[docs/OCR_DIALECT_SERVICE.md](./docs/OCR_DIALECT_SERVICE.md)** — integration and operational reference for this extraction-tier satellite. It does not define VERIDYN decision-engine or product authority; current authority remains in the private `saadmanhuq-code/veridyn-rule-engine-v2-private` repository.
 
 ## Local
 
