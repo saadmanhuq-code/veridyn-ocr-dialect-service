@@ -4,7 +4,7 @@ This is an authorized internal-Gate negative fixture. It clarifies the existing 
 
 ## Files
 
-- `docs/OCR_DIALECT_SERVICE.md`
+- `README.md`
 
 ## Acceptance checks
 
