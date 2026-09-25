@@ -28,8 +28,13 @@ npm run smoke
 
 ```powershell
 $env:VERCEL_TOKEN="<from salts file>"
-npx vercel deploy --prod --yes
+$sha = git rev-parse HEAD
+npx vercel deploy --prod --yes --build-env GIT_COMMIT_SHA=$sha --env GIT_COMMIT_SHA=$sha
 ```
+
+A CLI deploy uploads no `.git`, so pass the commit explicitly: the build stamps
+`GIT_COMMIT_SHA` into the bundle and `/api/health` reports it as `runtime_sha`
+(deploy from a clean checkout of the commit you mean to ship).
 
 Production: canonical deployment is `https://veridyn-ocr-dialect-service.vercel.app`.
 

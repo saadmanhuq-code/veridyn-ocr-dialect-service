@@ -7,6 +7,14 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const outputPath = join(repoRoot, "lib", "generated-build-info.ts");
 const SHA_PATTERN = /^[0-9a-f]{7,64}$/i;
 
+// Deployment-provided commit SHAs, in priority order. GIT_COMMIT_SHA is the
+// operator-injected build env for hosts with no Git metadata in the build
+// container (a `vercel deploy` from the CLI uploads no .git; the Docker image on
+// Oracle VM3), matching the runtime chain in lib/health-identity.ts.
+export function authoritativeShaCandidates(env) {
+  return [env.VERCEL_GIT_COMMIT_SHA, env.GITHUB_SHA, env.CI_COMMIT_SHA, env.GIT_COMMIT_SHA];
+}
+
 function git(commandArgs) {
   try {
     return execFileSync("git", commandArgs, {
@@ -33,7 +41,7 @@ export function selectBuildCommitSha({
   const normalizedGitSha = gitSha?.trim() ?? "";
   if (!SHA_PATTERN.test(normalizedGitSha)) {
     throw new Error(
-      "Cannot determine build commit SHA. Set VERCEL_GIT_COMMIT_SHA, GITHUB_SHA, or CI_COMMIT_SHA, or build from a Git checkout.",
+      "Cannot determine build commit SHA. Set VERCEL_GIT_COMMIT_SHA, GITHUB_SHA, CI_COMMIT_SHA, or GIT_COMMIT_SHA, or build from a Git checkout.",
     );
   }
   if (dirty && !allowDirty) {
@@ -46,11 +54,7 @@ export function selectBuildCommitSha({
 
 function generateBuildInfo() {
   const buildCommitSha = selectBuildCommitSha({
-    authoritativeCandidates: [
-      process.env.VERCEL_GIT_COMMIT_SHA,
-      process.env.GITHUB_SHA,
-      process.env.CI_COMMIT_SHA,
-    ],
+    authoritativeCandidates: authoritativeShaCandidates(process.env),
     gitSha: git(["rev-parse", "HEAD"]),
     dirty: Boolean(git(["status", "--porcelain", "--untracked-files=all"])),
     allowDirty: process.argv.includes("--allow-dirty"),
