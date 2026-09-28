@@ -36,6 +36,11 @@ async function withEnabledCorpus<T>(modelText: string, run: () => Promise<T>) {
     return true;
   }) as typeof process.stdout.write;
   try {
+    appendCorpusEvent({ event_type: "transcribe", transcript: "fixture-control", consent: true });
+    if (writes.filter((line) => line.includes('"schema_version":"corpus_event.v1"')).length !== 1) {
+      throw new Error("Corpus capture fixture was not enabled");
+    }
+    writes.length = 0;
     const value = await run();
     return { value, corpusWrites: writes.filter((line) => line.includes('"schema_version":"corpus_event.v1"')) };
   } finally {
