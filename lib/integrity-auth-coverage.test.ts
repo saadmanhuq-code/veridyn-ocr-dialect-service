@@ -157,3 +157,27 @@ test("AUTH-COVERAGE real-codebase: all mutation routes in app/api/ call requireA
       `0 unprotected mutation handlers found.`,
   );
 });
+
+test("AUTH-COVERAGE rejects a commented-out auth call", () => {
+  const found = detectUnprotectedRoutes([{
+    path: "app/api/commented/route.ts",
+    source: 'export async function POST(req) { // requireApiKey(req.headers)\n  return null;\n}',
+  }]);
+  assert.deepEqual(found, [{ path: "app/api/commented/route.ts", methods: ["POST"] }]);
+});
+
+test("AUTH-COVERAGE rejects a string literal that mentions the auth call", () => {
+  const found = detectUnprotectedRoutes([{
+    path: "app/api/string-hint/route.ts",
+    source: 'export async function POST(req) { const note = "requireApiKey("; return null; }',
+  }]);
+  assert.deepEqual(found, [{ path: "app/api/string-hint/route.ts", methods: ["POST"] }]);
+});
+
+test("AUTH-COVERAGE requires auth in the mutation handler, not only in a GET sibling", () => {
+  const found = detectUnprotectedRoutes([{
+    path: "app/api/get-only-auth/route.ts",
+    source: 'export async function GET(req) { requireApiKey(req.headers); return null; }\nexport async function POST(req) { return null; }',
+  }]);
+  assert.deepEqual(found, [{ path: "app/api/get-only-auth/route.ts", methods: ["POST"] }]);
+});
