@@ -22,6 +22,7 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import ts from "typescript";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,38 +47,59 @@ export interface UnprotectedRoute {
 
 const MUTATION_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
 
+function isMutationMethod(name: string): name is (typeof MUTATION_METHODS)[number] {
+  return MUTATION_METHODS.some((method) => method === name);
+}
+
+function isExported(node: ts.Node): boolean {
+  if (!ts.canHaveModifiers(node)) return false;
+  return ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false;
+}
+
+function hasActiveAuthCall(node: ts.Node): boolean {
+  if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) &&
+      node.expression.text === "requireApiKey") {
+    return true;
+  }
+  return ts.forEachChild(node, hasActiveAuthCall) === true;
+}
+
 /**
- * Returns routes that export a mutation handler but do NOT call requireApiKey.
- *
- * Detection is source-level: we check whether:
- *   (a) the file exports a handler for the method — either
- *       `export [async ]function METHOD(` or `export const METHOD =` — AND
- *   (b) the file contains a `requireApiKey(` call.
- *
- * If (a) is true and (b) is false → unprotected.
- *
- * This is intentionally simple regex/string-scan — no full AST — which is
- * sufficient for this codebase's uniform pattern (requireApiKey is called at
- * the top of every POST handler, or the route is a GET/OPTIONS-only file).
+ * Return exported mutation handlers without an active requireApiKey call
+ * inside that handler. TypeScript's parser ignores comments and string
+ * literals, and checking each handler avoids a GET call covering a POST.
+ * This is a syntactic guard; route behavior tests must still verify denial.
  */
 export function detectUnprotectedRoutes(routes: RouteFile[]): UnprotectedRoute[] {
   const unprotected: UnprotectedRoute[] = [];
 
   for (const route of routes) {
-    const hasAuth = route.source.includes("requireApiKey(");
+    const sourceFile = ts.createSourceFile(
+      route.path, route.source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS,
+    );
+    const missing: string[] = [];
 
-    const exposedMutationMethods = MUTATION_METHODS.filter((method) => {
-      // Match `export async function POST(` / `export function POST(`
-      const fnPattern = new RegExp(
-        `export\\s+(?:async\\s+)?function\\s+${method}\\s*\\(`,
-      );
-      // Match `export const POST = ` (arrow fn or function expression)
-      const constPattern = new RegExp(`export\\s+const\\s+${method}\\s*=`);
-      return fnPattern.test(route.source) || constPattern.test(route.source);
-    });
+    for (const statement of sourceFile.statements) {
+      if (!isExported(statement)) continue;
 
-    if (exposedMutationMethods.length > 0 && !hasAuth) {
-      unprotected.push({ path: route.path, methods: exposedMutationMethods });
+      if (ts.isFunctionDeclaration(statement) && statement.name &&
+          isMutationMethod(statement.name.text)) {
+        if (!statement.body || !hasActiveAuthCall(statement.body)) {
+          missing.push(statement.name.text);
+        }
+      } else if (ts.isVariableStatement(statement)) {
+        for (const declaration of statement.declarationList.declarations) {
+          if (!ts.isIdentifier(declaration.name) ||
+              !isMutationMethod(declaration.name.text)) continue;
+          if (!declaration.initializer || !hasActiveAuthCall(declaration.initializer)) {
+            missing.push(declaration.name.text);
+          }
+        }
+      }
+    }
+
+    if (missing.length > 0) {
+      unprotected.push({ path: route.path, methods: missing });
     }
   }
 
