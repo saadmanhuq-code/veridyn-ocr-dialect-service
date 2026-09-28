@@ -37,17 +37,19 @@ function resolveLang(language: string | null | undefined): string {
 async function recognizeScanBuffer(
   buf: Buffer,
   languageHint: string | null | undefined,
-): Promise<{ text: string; confidence: number; engine: string }> {
+): Promise<{ text: string; confidence: number; engine: string; visionFallback?: "provider_failure" }> {
   const resolvedLang = resolveLang(languageHint);
+  let visionFailed = false;
   if (process.env.VERCEL || isVertexVisionEnabled() || isGeminiVisionEnabled() || isOpenRouterVisionEnabled()) {
     try {
       return await ocrImageViaBestVision(buf, languageHint);
     } catch (e) {
       if (process.env.VERCEL) throw e;
+      visionFailed = true;
     }
   }
   const tess = await recognizeBufferTesseract(buf, resolvedLang);
-  return { ...tess, engine: "tesseract.js" };
+  return { ...tess, engine: "tesseract.js", ...(visionFailed ? { visionFallback: "provider_failure" as const } : {}) };
 }
 
 async function downscaleForOcr(buf: Buffer, maxWidth = MAX_OCR_WIDTH): Promise<Buffer> {
@@ -107,11 +109,13 @@ export async function ocrPdfRasterPages(
   let totalConfidence = 0;
   let confidenceSamples = 0;
   let engineUsed = "tesseract.js";
+  let visionFallbackPages = 0;
 
   for (let pageNum = 1; pageNum <= pageCount; pageNum += 1) {
     const png = await downscaleForOcr(await renderPdfPagePngScaled(doc, pageNum));
-    const { text: normalized, confidence, engine } = await recognizeScanBuffer(png, languageHint);
+    const { text: normalized, confidence, engine, visionFallback } = await recognizeScanBuffer(png, languageHint);
     engineUsed = engine;
+    if (visionFallback) visionFallbackPages += 1;
     if (normalized) pageTexts.push(normalized);
     if (confidence > 0) {
       totalConfidence += confidence;
@@ -120,6 +124,9 @@ export async function ocrPdfRasterPages(
   }
 
   const text = pageTexts.join("\n\n").trim();
+  if (visionFallbackPages > 0) {
+    warnings.push(`Vision OCR failed on ${visionFallbackPages} page${visionFallbackPages === 1 ? "" : "s"}; local OCR was used. Review the extracted text.`);
+  }
   const meanConfidence = confidenceSamples > 0 ? totalConfidence / confidenceSamples : 0;
 
   if (!text) {
@@ -141,6 +148,7 @@ export async function ocrPdfRasterPages(
       intake_path: "pdf_raster_ocr",
       language: resolvedLang,
       pages_ocrd: pageCount,
+      ...(visionFallbackPages > 0 ? { vision_fallback: "provider_failure", vision_fallback_page_count: visionFallbackPages } : {}),
       status: text ? "text_extracted_candidate_only" : "no_text_detected",
       candidate_evidence_only: true,
       review_required: true,
@@ -158,16 +166,18 @@ export async function ocrImageBuffer(
 ): Promise<{ text: string; warnings: string[]; ocr_provenance: Record<string, unknown> }> {
   const resolvedLang = resolveLang(languageHint);
   const scaled = await downscaleForOcr(buf);
-  const { text, confidence, engine } = await recognizeScanBuffer(scaled, languageHint);
+  const { text, confidence, engine, visionFallback } = await recognizeScanBuffer(scaled, languageHint);
   const warnings = text
     ? ["OCR text is candidate evidence only until reviewed or validated."]
     : ["OCR ran but did not detect readable text in this scan."];
+  if (visionFallback) warnings.unshift("Vision OCR failed; local OCR was used. Review the extracted text.");
   return {
     text,
     warnings,
     ocr_provenance: {
       schema_version: "ocr_intake.v1",
       engine,
+      ...(visionFallback ? { vision_fallback: visionFallback } : {}),
       language: resolvedLang,
       language_source: languageHint ? "explicit" : "default_ben_eng",
       status: text ? "text_extracted_candidate_only" : "no_text_detected",
