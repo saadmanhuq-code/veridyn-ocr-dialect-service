@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
+import { JsonBodyTooLargeError, MAX_DIALECT_REQUEST_BYTES, parseLimitedJsonBody } from "@/lib/limited-json-body";
 import { inferDialectFromText, normalizeBn, DIALECT_SUGGESTION_FLOOR, MAX_DIALECT_TEXT_CHARACTERS } from "@/lib/dialect";
 
 export const runtime = "nodejs";
@@ -45,8 +46,14 @@ export async function POST(req: NextRequest) {
 
   let body: unknown;
   try {
-    body = await req.json();
-  } catch {
+    body = await parseLimitedJsonBody(req);
+  } catch (error) {
+    if (error instanceof JsonBodyTooLargeError) {
+      return NextResponse.json(
+        { detail: `JSON body exceeds ${MAX_DIALECT_REQUEST_BYTES} bytes.` },
+        { status: 413, headers: corsHeaders(origin) },
+      );
+    }
     return NextResponse.json(
       { detail: "Expected JSON body." },
       { status: 400, headers: corsHeaders(origin) },
@@ -54,7 +61,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Accept either { phrase: string } or { phrases: string[] }.
-  const raw = body as Record<string, unknown>;
+  const raw = body !== null && typeof body === "object" && !Array.isArray(body)
+    ? body as Record<string, unknown>
+    : {};
   let phrases: string[];
   if (typeof raw.phrase === "string") {
     phrases = [raw.phrase];
