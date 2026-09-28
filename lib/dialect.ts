@@ -17,6 +17,7 @@ const BENGALI_DIGITS = new Map<string, string>([
 ]);
 
 export const DIALECT_SUGGESTION_FLOOR = 0.58;
+export const MAX_DIALECT_TEXT_CHARACTERS = 8192;
 
 export interface DialectCandidate {
   phrase: string;

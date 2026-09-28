@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
-import { inferDialectFromText, normalizeBn, DIALECT_SUGGESTION_FLOOR } from "@/lib/dialect";
+import { inferDialectFromText, normalizeBn, DIALECT_SUGGESTION_FLOOR, MAX_DIALECT_TEXT_CHARACTERS } from "@/lib/dialect";
 
 export const runtime = "nodejs";
 
@@ -72,6 +72,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { detail: `Too many phrases — max ${MAX_PHRASES} per request.` },
       { status: 400, headers: corsHeaders(origin) },
+    );
+  }
+
+  const totalCharacters = phrases.reduce((sum, phrase) => sum + phrase.length, 0);
+  if (totalCharacters > MAX_DIALECT_TEXT_CHARACTERS) {
+    return NextResponse.json(
+      { detail: `Phrase text exceeds ${MAX_DIALECT_TEXT_CHARACTERS} characters per request.` },
+      { status: 413, headers: corsHeaders(origin) },
     );
   }
 
