@@ -36,6 +36,33 @@ test("phrase evaluation rejects an aggregate oversized text batch", async () => 
   assert.equal(body.results, undefined);
 });
 
+function rawRequest(path: string, raw: string, extraHeaders: Record<string, string> = {}) {
+  return new NextRequest(`http://localhost${path}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${key}`, "content-type": "application/json", ...extraHeaders },
+    body: raw,
+  });
+}
+
+test("dialect analyze rejects a large padded JSON body before text inference", async () => {
+  const raw = JSON.stringify({ text: "ok", padding: "x".repeat(70 * 1024) });
+  const response = await analyze(rawRequest("/api/dialect/analyze", raw));
+  assert.equal(response.status, 413);
+  assert.match((await response.json()).detail, /65536/);
+});
+
+test("phrase evaluation rejects a large body even with an underreported length header", async () => {
+  const raw = JSON.stringify({ phrase: "ok", padding: "x".repeat(70 * 1024) });
+  const response = await phraseEval(rawRequest("/api/phrase-eval", raw, { "content-length": "12" }));
+  assert.equal(response.status, 413);
+  assert.match((await response.json()).detail, /65536/);
+});
+
+test("phrase evaluation treats JSON null as invalid input instead of throwing", async () => {
+  const response = await phraseEval(request("/api/phrase-eval", null));
+  assert.equal(response.status, 400);
+});
+
 test("ordinary dialect text still returns a cue inference", async () => {
   const response = await analyze(request("/api/dialect/analyze", { text: "আমি বরিশালে থাকি" }));
   assert.equal(response.status, 200);
