@@ -37,7 +37,6 @@ import { corsHeaders } from "@/lib/cors";
 import { transcribeViaBest } from "@/lib/audio-stt";
 import { normaliseBn, tagScriptMix } from "@/lib/bn-normalize";
 import { resolveDialectFromText } from "@/lib/dialect-classifier";
-import { appendCorpusEvent, contentHash, dialectCorpusFields } from "@/lib/corpus-log";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -177,19 +176,6 @@ export async function POST(req: NextRequest) {
   const transcriptBn = normaliseBn(transcriptRaw);
   const language = tagScriptMix(transcriptBn);
   const dialect = await resolveDialectFromText(transcriptBn);
-
-  // --- Corpus log (fire-and-forget) ---
-  appendCorpusEvent({
-    event_type: "transcribe",
-    audio_sha256: contentHash(audioBytes),
-    transcript: transcriptBn,
-    language,
-    ...dialectCorpusFields(dialect),
-    product,
-    region,
-    stt_provider: result.provider,
-    consent: true, // operator context; user consent UI is a Slice-2 requirement
-  });
 
   return NextResponse.json(
     {

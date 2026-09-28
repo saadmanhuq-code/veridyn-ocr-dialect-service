@@ -27,7 +27,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { analyzeImageIntent } from "@/lib/image-intent";
-import { appendCorpusEvent, contentHash } from "@/lib/corpus-log";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -114,17 +113,6 @@ export async function POST(req: NextRequest) {
       { headers: corsHeaders(origin) },
     );
   }
-
-  // Corpus log (fire-and-forget)
-  appendCorpusEvent({
-    event_type: "image_intent",
-    image_sha256: contentHash(imageBytes),
-    language: result.language,
-    intent_category: result.category_hints[0],
-    product,
-    region,
-    consent: true,
-  });
 
   return NextResponse.json(result, { headers: withConsumerHeader(corsHeaders(origin), consumer) });
 }

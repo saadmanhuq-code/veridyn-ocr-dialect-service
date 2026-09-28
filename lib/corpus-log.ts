@@ -7,7 +7,8 @@
  * are captured by Vercel's built-in log drain and can be piped to any sink
  * (Supabase, S3, Loki) by toggling a Vercel Log Drain integration — no code
  * change required. When VERIDYN_CORPUS_LOG=enabled the lines are emitted;
- * when absent (default) the function is a no-op.
+ * when absent (default) the function is a no-op. Enabled logging still requires
+ * an explicit consent:true event; current public routes do not supply one.
  *
  * To enable: set VERIDYN_CORPUS_LOG=enabled on the Vercel project.
  * To ship to Supabase: attach a Log Drain webhook that POSTs to a Supabase
@@ -37,7 +38,7 @@ export interface CorpusEvent {
   region?: string; // optional user-declared region
   stt_provider?: string;
   intent_category?: string;
-  consent?: boolean; // always true in Slice-1 (operator context); required before persisting audio hashes
+  consent?: boolean; // explicit end-user consent is required before any corpus write
 }
 
 function isCorpusLogEnabled(): boolean {
@@ -66,14 +67,14 @@ export function dialectCorpusFields(dialect: DialectInference): Pick<
  * Output to stdout as JSONL; captured by Vercel log drain.
  */
 export function appendCorpusEvent(event: Omit<CorpusEvent, "schema_version" | "ts">): void {
-  if (!isCorpusLogEnabled()) return;
+  if (!isCorpusLogEnabled() || event.consent !== true) return;
   try {
     const record: CorpusEvent = {
       schema_version: "corpus_event.v1",
       ts: new Date().toISOString(),
       ...event,
     };
-    // JSONL line — one compact JSON object per line, no PII beyond content hashes
+    // JSONL may contain transcript text; callers must have verified consent.
     process.stdout.write(JSON.stringify(record) + "\n");
   } catch {
     // swallow — corpus log must never break the primary response
