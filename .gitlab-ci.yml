@@ -1,11 +1,13 @@
-# Cutover (lane #51, ss-group3592724/gate): this project's actual pipeline source of truth is
-# now the GitLab project setting CI/CD > General pipelines > "CI/CD configuration file" =
-# ci_config_path=ci.yml@ss-group3592724/gate, so a merge request into this repo cannot weaken the
-# gate that grades it. This local file is left only as a documentation pointer to that fact — a
-# reader who opens the repo without checking project settings still sees where CI comes from.
+# Documentation pointer (lane #51, ss-group3592724/gate): this project's actual pipeline source
+# of truth is the GitLab project setting CI/CD > General pipelines > "CI/CD configuration file" =
+# ci_config_path=ci-doc-skip.yml@ss-group3592724/gate:92394505eb4219823f6c2600bd699226fd9d931f
+# (with underlying Gate pin a645e2f0e2408416f177211cf2b1b2882ef8c636). A merge request into this repo
+# cannot weaken the gate that grades it. This local file is left only as a documentation pointer to
+# that fact — a reader who opens the repo without checking project settings still sees where CI comes from.
 # The gate's ci.yml includes products/veridyn-ocr-dialect-service.yml (job `ci`: npm ci && npm
 # test, this product's own test command, unchanged) plus the scripts-lock guard, brief checks and
 # Tier 2 review/promotion dispatch. See https://gitlab.com/ss-group3592724/gate.
 include:
   - project: ss-group3592724/gate
+    ref: a645e2f0e2408416f177211cf2b1b2882ef8c636
     file: ci.yml
