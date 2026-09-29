@@ -68,11 +68,9 @@ to the primary key after all consumers are cut over.
 
 ### Per-consumer keys (`VERIDYN_OCR_CONSUMER_KEYS`)
 
-Six-plus production consumers sharing one static key means rotating it breaks
-everyone at once and there is no way to cut off a single compromised or
-offboarded consumer. `VERIDYN_OCR_CONSUMER_KEYS` gives each consumer its own
+One verified production consumer exists — ProteinChain (`VERIDYN_OCR_URL` / `VERIDYN_OCR_API_KEY` named in its `.env.example`; live Vercel env read 2026-07-04) — and other consumers are unverified, not asserted absent. Past shared-key wording overstated adoption; per-consumer keys still matter because any consumers sharing one static key break together on rotation, with no way to cut off a single compromised or offboarded consumer. `VERIDYN_OCR_CONSUMER_KEYS` gives each consumer its own
 scoped, individually revocable credential, accepted **alongside** the legacy
-`VERIDYN_OCR_API_KEY` / `_NEXT` during migration:
+`VERIDYN_OCR_API_KEY` / `_NEXT` during migration. Record each product's live proof separately with its date before claiming it as a consumer.
 
 ```
 VERIDYN_OCR_CONSUMER_KEYS={"proteinchain":"<key-a>","dataroom":"<key-b>"}

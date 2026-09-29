@@ -7,7 +7,9 @@ Standalone OCR + dialect “catcher” service for Bangladesh-first workflows.
 - **Dialect**: `POST /api/dialect/analyze` — heuristic cue-matching ported from `factory-VERIDYN/ui/bengali-dialect-lab/`.
 - **Web UI**: `/` — unauthenticated integration/reference page. It does not call the bearer-protected APIs or receive an API key. `/lab` redirects to `/`.
 
-Documentation: **[docs/OCR_DIALECT_SERVICE.md](./docs/OCR_DIALECT_SERVICE.md)** — integration and operational reference for this extraction-tier satellite. It does not define VERIDYN decision-engine or product authority; current authority remains in the private `saadmanhuq-code/veridyn-rule-engine-v2-private` repository.
+Documentation: **[docs/OCR_DIALECT_SERVICE.md](./docs/OCR_DIALECT_SERVICE.md)** — integration and operational reference for this extraction-tier satellite. It does not define VERIDYN decision-engine or product authority; runtime authority is `veridyn-proven-recovery-2026-05-22` (`docs/VERIDYN_CANONICAL.md` there).
+
+Ownership: this service owns OCR/extraction for intake support; dialect-logic owner is the governed runtime in `veridyn-proven-recovery-2026-05-22` (`src/veridyn/bengali_dialect_lab.py`, `ui/bengali-dialect-lab/`). This service's `/api/dialect/analyze` is a ported heuristic cue-matcher for intake support, not the dialect authority — and the governed engine consumes no OCR runtime for authority.
 
 ## Local
 
@@ -26,8 +28,10 @@ npm run smoke
 
 ## Deploy Vercel
 
+> **Leader/operator only.** Production deploys run with operator-held credentials; coding seats do not deploy. The operator fetches `VERCEL_TOKEN` from the credential root or agent-vault by name — never pasted into files, chat, or MRs.
+
 ```powershell
-$env:VERCEL_TOKEN="<from salts file>"
+$env:VERCEL_TOKEN="<operator: fetch VERCEL_TOKEN from the credential root or agent-vault by name>"
 $sha = git rev-parse HEAD
 npx vercel deploy --prod --yes --build-env GIT_COMMIT_SHA=$sha --env GIT_COMMIT_SHA=$sha
 ```
