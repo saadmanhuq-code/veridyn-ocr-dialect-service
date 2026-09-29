@@ -1,3 +1,5 @@
+> **HISTORICAL / RECORD (2026-09-29):** Dated task brief and acceptance record from 2026-09-28. Retained unchanged for provenance.
+
 # Detect active mutation auth calls in OCR routes
 
 Base: f2ef2e1f33c622cb77460f1a6cd732fd395e96dc

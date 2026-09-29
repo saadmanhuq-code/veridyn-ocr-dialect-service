@@ -1,3 +1,5 @@
+> **HISTORICAL / SUPERSEDED (2026-09-29):** This document is a dated historical record of Lane #51 execution and manual fallback brief authored during cutover. It is retained unchanged for provenance and audit purposes. Machinery described (WorkOrder compiler, past blocker gate#82) is historical; do not cite as live working instructions or active blockers. Active CI runs via GitLab Gate integration.
+
 # Lane 51 brief — veridyn-ocr-dialect-service: build through the gate
 
 **Compiler status:** `compile_conversation_work_order_v1` (portfolio-context-engine MCP,

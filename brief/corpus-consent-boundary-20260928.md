@@ -1,3 +1,5 @@
+> **HISTORICAL / RECORD (2026-09-29):** Dated task brief and acceptance record from 2026-09-28. Retained unchanged for provenance.
+
 # Stop OCR corpus writes without end-user consent
 
 Base: 8d4a5306422f741ef43784046e0b9e0abc789e4a

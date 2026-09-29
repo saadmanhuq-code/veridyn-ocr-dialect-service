@@ -1,3 +1,5 @@
+> **HISTORICAL / RECORD (2026-09-29):** Dated task brief and acceptance record from 2026-09-28. Retained unchanged for provenance.
+
 # Bound dialect matcher input
 
 Base: 296ed87964188b70d1e7417ded0384e286a2f4ec

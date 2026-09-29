@@ -1,3 +1,5 @@
+> **HISTORICAL / SUPERSEDED (2026-09-29):** This cutover brief is a dated historical record of Lane #51 cutover operations and acceptance evidence. It is retained unchanged for provenance and audit purposes. The operational state described here has completed; do not treat past open blockers or execution checklists as current instructions. Active CI runs via GitLab Gate integration.
+
 # Cutover brief — veridyn-ocr-dialect-service through the gate
 
 **Lane:** #51 on `ss-group3592724/gate`. **Depends on:** #64, #36 (both closed).

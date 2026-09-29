@@ -1,3 +1,5 @@
+# HISTORICAL / SUPERSEDED (2026-09-29): This workflow is retained for historical provenance only.
+# Active CI is executed on GitLab via ss-group3592724/gate; GitHub Actions workflows on the mirror twin are disabled_manually.
 name: CI
 
 on:

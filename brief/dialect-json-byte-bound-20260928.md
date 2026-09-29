@@ -1,3 +1,5 @@
+> **HISTORICAL / RECORD (2026-09-29):** Dated task brief and acceptance record from 2026-09-28. Retained unchanged for provenance.
+
 # OCR dialect JSON byte bound
 
 Base: e7e6e397d7a0f47fb1146409c428950631de99af

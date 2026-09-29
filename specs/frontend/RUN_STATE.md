@@ -1,3 +1,5 @@
+> **HISTORICAL / SUPERSEDED (2026-09-29):** This document is a dated historical run state from Frontend Factory v2.2 (AM-12). It is retained unchanged for provenance and audit purposes. The legacy pre-factory run process and retired phase states are superseded; do not cite as live working instructions. The active user-facing frontend surface remains the static reference page at `/` and redirect at `/lab`.
+
 # Frontend Factory — RUN_STATE — veridyn-ocr
 
 > Frontend Factory v2.2 (AM-12 Wiring-Truth Gate folded in). Per AM-1, any agent

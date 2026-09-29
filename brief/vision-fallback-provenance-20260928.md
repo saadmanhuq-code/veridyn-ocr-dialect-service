@@ -1,3 +1,5 @@
+> **HISTORICAL / RECORD (2026-09-29):** Dated task brief and acceptance record from 2026-09-28. Retained unchanged for provenance.
+
 # Surface vision-to-local OCR fallback
 
 Base: 5fadbe7858c714728a2bda94c2201d8586a705e1
