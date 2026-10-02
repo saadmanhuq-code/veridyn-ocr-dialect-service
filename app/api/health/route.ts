@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { BUILD_COMMIT_SHA } from "@/lib/generated-build-info";
 import { corsHeaders } from "@/lib/cors";
+import { requireApiKey } from "@/lib/auth";
 import { resolveRuntimeSha } from "@/lib/health-identity";
 import { getOcrWorker } from "@/lib/ocr-engine";
 import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
@@ -24,6 +25,11 @@ export async function GET(req: NextRequest) {
   const origin = req.headers.get("origin");
   let ocrWarm: string | undefined;
   if (req.nextUrl.searchParams.get("warm") === "ocr") {
+    const authBlock = requireApiKey(req.headers);
+    if (authBlock) {
+      Object.entries(corsHeaders(origin)).forEach(([key, value]) => authBlock.headers.set(key, value));
+      return authBlock;
+    }
     try {
       if (process.env.VERCEL && !isGeminiVisionEnabled() && !isOpenRouterVisionEnabled()) {
         ocrWarm = "vision_keys_required";
