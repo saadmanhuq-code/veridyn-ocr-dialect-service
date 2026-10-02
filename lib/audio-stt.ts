@@ -108,12 +108,12 @@ export async function transcribeViaGeminiStudio(
 
   const b64 = audioBytes.toString("base64");
   const model = process.env.VERIDYN_STT_MODEL?.trim() || "gemini-2.0-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const t0 = Date.now();
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       contents: [
         {
