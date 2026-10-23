@@ -1,7 +1,3 @@
-Rules for every harness, and how work happens: `AGENTS.md` on GitLab `ss-group3592724/operator-os` main
-(`glab api "projects/ss-group3592724%2Foperator-os/repository/files/AGENTS.md/raw?ref=main"`). This file adds
-only facts about this product.
-
 # Agent Instructions — veridyn-ocr-dialect-service
 
 ## Product boundary and invariants
