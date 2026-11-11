@@ -70,7 +70,7 @@ afterEach(() => {
 describe("Vertex dispatcher priority", () => {
   test("transcribeViaBest uses Vertex before Gemini Studio when a service account is configured", async () => {
     process.env.GOOGLE_SERVICE_ACCOUNT_JSON = fakeServiceAccountJson();
-    process.env.GEMINI_API_KEY = "studio-key-that-should-not-be-used";
+    process.env.GEMINI_API_KEY = "unused-stub-key";
 
     const seenUrls: string[] = [];
     let generateBody: Record<string, unknown> | null = null;
@@ -89,10 +89,10 @@ describe("Vertex dispatcher priority", () => {
 
     assert.ok(!("fallback" in result), "expected a real STT result");
     assert.equal(result.provider, "vertex");
-    assert.equal(result.model, "gemini-2.5-flash");
+    assert.equal(result.model, "gemini-3.8-flash");
     assert.equal(result.transcript, "আমি সিলেটি বলি");
     assert.ok(result.latency_ms >= 0);
-    assert.ok(seenUrls[1]?.includes("aiplatform.googleapis.com/v1/projects/gen-lang-client-0305450104/locations/global/publishers/google/models/gemini-2.5-flash:generateContent"));
+    assert.ok(seenUrls[1]?.includes("aiplatform.googleapis.com/v1/projects/gen-lang-client-0305450104/locations/global/publishers/google/models/gemini-3.8-flash:generateContent"));
     assert.equal(seenUrls.some((url) => url.includes("generativelanguage.googleapis.com")), false);
 
     const body = requireGeneratedBody(generateBody);
@@ -104,7 +104,7 @@ describe("Vertex dispatcher priority", () => {
 
   test("ocrImageViaBestVision uses Vertex image inline_data before Gemini Studio", async () => {
     process.env.GOOGLE_SERVICE_ACCOUNT_JSON = fakeServiceAccountJson();
-    process.env.GEMINI_API_KEY = "studio-key-that-should-not-be-used";
+    process.env.GEMINI_API_KEY = "unused-stub-key";
 
     let generateBody: Record<string, unknown> | null = null;
     globalThis.fetch = (async (url, init) => {
@@ -131,7 +131,7 @@ describe("Vertex dispatcher priority", () => {
 
   test("analyzeImageIntent reports Vertex provenance when service account auth is available", async () => {
     process.env.GOOGLE_SERVICE_ACCOUNT_JSON = fakeServiceAccountJson();
-    process.env.GEMINI_API_KEY = "studio-key-that-should-not-be-used";
+    process.env.GEMINI_API_KEY = "unused-stub-key";
 
     globalThis.fetch = (async (url) => {
       if (String(url) === "https://oauth2.googleapis.com/token") {
@@ -166,7 +166,7 @@ describe("Vertex dispatcher priority", () => {
 
     assert.ok(result);
     assert.equal(result.provenance.provider, "vertex");
-    assert.equal(result.provenance.model, "gemini-2.5-flash");
+    assert.equal(result.provenance.model, "gemini-3.8-flash");
     assert.equal(result.provenance.schema_version, "image_intent.v1");
   });
 });

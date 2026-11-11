@@ -7,8 +7,9 @@
  * are captured by Vercel's built-in log drain and can be piped to any sink
  * (Supabase, S3, Loki) by toggling a Vercel Log Drain integration — no code
  * change required. When VERIDYN_CORPUS_LOG=enabled the lines are emitted;
- * when absent (default) the function is a no-op. Enabled logging still requires
- * an explicit consent:true event; current public routes do not supply one.
+ * when absent (default) the function is a no-op. Enabled logging still
+ * requires an explicit consent:true event (caller-supplied via
+ * parseConsent, default false); without it nothing is emitted.
  *
  * To enable: set VERIDYN_CORPUS_LOG=enabled on the Vercel project.
  * To ship to Supabase: attach a Log Drain webhook that POSTs to a Supabase
@@ -38,7 +39,32 @@ export interface CorpusEvent {
   region?: string; // optional user-declared region
   stt_provider?: string;
   intent_category?: string;
-  consent?: boolean; // explicit end-user consent is required before any corpus write
+  /**
+   * Caller-supplied end-user consent for corpus retention. Defaults to
+   * false when the caller does not supply it. Explicit end-user consent is
+   * required before any corpus write: when false, no event is emitted at
+   * all (main's consent stop); the field-strip in appendCorpusEvent stays
+   * as defense in depth behind that gate.
+   */
+  consent?: boolean;
+}
+
+/** Fields that identify or reproduce caller content; retained only with consent. */
+const PERSISTENCE_FIELDS = ["transcript", "audio_sha256", "image_sha256"] as const;
+
+/**
+ * Parse a caller-supplied consent value from a multipart form field or a
+ * JSON body. Only an explicit affirmative counts: boolean true, or the
+ * strings "true"/"1"/"yes" (case-insensitive). Everything else — including
+ * undefined, null, "false", numbers — is false. Consent is never inferred.
+ */
+export function parseConsent(raw: unknown): boolean {
+  if (raw === true) return true;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    return v === "true" || v === "1" || v === "yes";
+  }
+  return false;
 }
 
 function isCorpusLogEnabled(): boolean {
@@ -69,12 +95,23 @@ export function dialectCorpusFields(dialect: DialectInference): Pick<
 export function appendCorpusEvent(event: Omit<CorpusEvent, "schema_version" | "ts">): void {
   if (!isCorpusLogEnabled() || event.consent !== true) return;
   try {
+    // Consent gate (defense in depth behind the early return above): the
+    // sanitizer below would strip persistence-shaped fields and record
+    // consent:false if a non-consented event ever reached emission.
+    const consented = event.consent === true;
+    const sanitized: Omit<CorpusEvent, "schema_version" | "ts"> = {
+      ...event,
+      consent: consented,
+    };
+    if (!consented) {
+      for (const field of PERSISTENCE_FIELDS) delete sanitized[field];
+    }
     const record: CorpusEvent = {
       schema_version: "corpus_event.v1",
       ts: new Date().toISOString(),
-      ...event,
+      ...sanitized,
     };
-    // JSONL may contain transcript text; callers must have verified consent.
+    // JSONL line — one compact JSON object per line, no PII beyond content hashes
     process.stdout.write(JSON.stringify(record) + "\n");
   } catch {
     // swallow — corpus log must never break the primary response

@@ -120,7 +120,9 @@ describe("Vertex dialect classifier resolver", () => {
     for (const label of dialectCatalogLabels()) {
       assert.ok(prompt.includes(label), `prompt must include catalog label ${label}`);
     }
-    assert.equal(prompt.includes("mymensingh"), false, "prompt must not invent dialect labels");
+    // W1 added mymensingh (and rajshahi/khulna/cumilla) to the catalog, so
+    // the no-invented-labels check now uses a region with no catalog entry.
+    assert.equal(prompt.includes("bogura"), false, "prompt must not invent dialect labels");
   });
 
   test("classifier request disables thinking tokens and has enough output budget for JSON", async () => {

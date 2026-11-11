@@ -15,8 +15,9 @@ export function OPTIONS(req: NextRequest) {
  *
  * Text-only fact extraction — runs the same deterministic regex engine used by
  * POST /api/documents/extract after OCR, but accepts raw text directly so
- * callers (DataRoom, BDA, Agentic) can skip the multipart upload path when
- * they already hold the transcript.
+ * server-side callers that already hold the transcript can skip the
+ * multipart upload path. (Sole verified production consumer of this service
+ * is ProteinChain; see docs/CONSUMERS.md — no other caller is claimed.)
  *
  * Auth posture: identical to sibling routes — Bearer via VERIDYN_OCR_API_KEY /
  * VERIDYN_OCR_API_KEY_NEXT. Auth FAILS CLOSED: if neither env var is set, only

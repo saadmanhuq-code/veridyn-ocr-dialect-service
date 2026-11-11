@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { BUILD_COMMIT_SHA } from "@/lib/generated-build-info";
 import { corsHeaders } from "@/lib/cors";
 import { requireApiKey } from "@/lib/auth";
-import { resolveRuntimeSha } from "@/lib/health-identity";
+import { resolveBuildIdentity } from "@/lib/health-identity";
 import { getOcrWorker } from "@/lib/ocr-engine";
 import { isGeminiVisionEnabled, isOpenRouterVisionEnabled } from "@/lib/vision-ocr";
 import pkg from "@/package.json";
@@ -43,17 +43,28 @@ export async function GET(req: NextRequest) {
       ocrWarm = e instanceof Error ? e.message : "failed";
     }
   }
-  const runtimeSha = resolveRuntimeSha([
-    process.env.VERCEL_GIT_COMMIT_SHA,
-    process.env.GIT_COMMIT_SHA,
-    BUILD_COMMIT_SHA,
-  ]);
+  // Build identity via env chain (lib/health-identity.ts): Vercel CLI
+  // deploys leave VERCEL_GIT_COMMIT_SHA unset, so fall back to operator- or
+  // CI-injected SHA vars, then the generated BUILD_COMMIT_SHA baked in at
+  // build time — a built artifact therefore never reports a null SHA.
+  // runtime_sha/commit_sha keep their existing shape; `build` is additive.
+  const build = resolveBuildIdentity({
+    ...process.env,
+    BUILD_COMMIT_SHA: process.env.BUILD_COMMIT_SHA?.trim() || BUILD_COMMIT_SHA,
+  });
+  const runtimeSha = build.commit_sha;
   return NextResponse.json(
     {
       ok: true,
       runtime_sha: runtimeSha,
       commit_sha: runtimeSha,
       contract_version: CONTRACT_VERSION,
+      build: {
+        commit_sha: build.commit_sha,
+        sha_source: build.sha_source,
+        vercel_env: process.env.VERCEL_ENV || null,
+        deployment_id: process.env.VERCEL_DEPLOYMENT_ID || null,
+      },
       ...(ocrWarm ? { ocr_warm: ocrWarm } : {}),
     },
     { headers: corsHeaders(origin) },

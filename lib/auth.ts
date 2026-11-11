@@ -1,8 +1,18 @@
 /** Fail-closed Bearer auth — same convention as protein-chain-bd Veridyn client. */
 
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import { NextResponse } from "next/server";
+
+import {
+  CONSUMER_HEADER,
+  LEGACY_CONSUMER,
+  constantTimeEqual,
+  consumerKeys,
+  logUsageEvent,
+  matchConsumerKey,
+} from "./consumer-keys";
+
+export { CONSUMER_HEADER, LEGACY_CONSUMER };
+export { parseConsumerKeys } from "./consumer-keys";
 
 /** Current/old key. Kept as-is for callers (routes, smoke) that read the primary. */
 export function veridynOcrBearer(): string | null {
@@ -21,79 +31,25 @@ export function bearerFromRequest(authHeader: string | null): string | null {
   return authHeader.slice(7).trim() || null;
 }
 
-/** Name attributed to a request authenticated via the legacy shared key. */
-export const LEGACY_CONSUMER = "legacy";
-
-/** Response header carrying the attributed consumer name. */
-export const CONSUMER_HEADER = "x-veridyn-consumer";
-
-/**
- * Parse VERIDYN_OCR_CONSUMER_KEYS into a Map<consumerName, key>.
- *
- * Each named entry is an independent, individually revocable credential:
- * an operator drops one `name` -> `key` pair to revoke that consumer alone,
- * without touching any other consumer's entry or the legacy shared key.
- *
- * Accepts two formats so operators can pick whichever is easier to manage
- * in their secrets store:
- *   - a JSON object: {"proteinchain": "key-a", "dataroom": "key-b"}
- *   - a comma/newline-separated "name:key" list:
- *     "proteinchain:key-a,dataroom:key-b"
- *
- * Malformed entries are skipped individually rather than throwing, so one
- * bad line in the list can't take every consumer down.
- */
-export function parseConsumerKeys(raw: string | null | undefined): Map<string, string> {
-  const out = new Map<string, string>();
-  const trimmed = raw?.trim();
-  if (!trimmed) return out;
-
-  if (trimmed.startsWith("{")) {
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        for (const [name, value] of Object.entries(parsed as Record<string, unknown>)) {
-          const key = typeof value === "string" ? value.trim() : "";
-          const trimmedName = name.trim();
-          if (trimmedName && key) out.set(trimmedName, key);
-        }
-        return out;
-      }
-    } catch {
-      // Not valid JSON — fall through to the "name:key" list parser below.
-    }
-  }
-
-  for (const entry of trimmed.split(/[,\n]/)) {
-    const piece = entry.trim();
-    if (!piece) continue;
-    const idx = piece.indexOf(":");
-    if (idx <= 0) continue;
-    const name = piece.slice(0, idx).trim();
-    const key = piece.slice(idx + 1).trim();
-    if (name && key) out.set(name, key);
-  }
-  return out;
-}
-
-/** Reads and parses VERIDYN_OCR_CONSUMER_KEYS fresh on every call (no module-level cache), so revocation takes effect on the next request without a process restart. */
-function consumerKeys(): Map<string, string> {
-  return parseConsumerKeys(process.env.VERIDYN_OCR_CONSUMER_KEYS);
-}
-
-/**
- * Resolve which credential (if any) a presented bearer token matches, by
- * name. Named per-consumer keys are checked first, then the legacy shared
- * key(s) (attributed as LEGACY_CONSUMER). Returns null for no match.
- */
-function matchCredential(token: string): string | null {
-  for (const [name, key] of consumerKeys()) {
-    if (safeEqual(token, key)) return name;
-  }
-  const legacy = [veridynOcrBearer(), veridynOcrBearerNext()].filter(
+/** Legacy shared keys currently configured (current + rotation-next). */
+function legacyAcceptedKeys(): string[] {
+  return [veridynOcrBearer(), veridynOcrBearerNext()].filter(
     (k): k is string => k !== null,
   );
-  if (legacy.some((expected) => safeEqual(token, expected))) return LEGACY_CONSUMER;
+}
+
+/**
+ * Resolve which credential a presented bearer token matches, by consumer
+ * name. Named per-consumer keys (lib/consumer-keys.ts) are checked first,
+ * then the legacy shared key(s), attributed as LEGACY_CONSUMER. Every
+ * compare is constant-time. Returns null for no match.
+ */
+function matchCredential(token: string): string | null {
+  const named = matchConsumerKey(token);
+  if (named !== null) return named;
+  if (legacyAcceptedKeys().some((expected) => constantTimeEqual(token, expected))) {
+    return LEGACY_CONSUMER;
+  }
   return null;
 }
 
@@ -111,9 +67,9 @@ export function resolveConsumer(headers: Headers): string | null {
 
 /**
  * Add the per-consumer attribution header to a response's headers, when a
- * consumer was resolved. Leaves the headers untouched when consumer is null
- * (unauthenticated dev-bypass path, or no match) so callers can pass this
- * through unconditionally.
+ * consumer was resolved. Leaves the headers untouched when consumer is
+ * null (unauthenticated dev-bypass path, or no match) so callers can pass
+ * this through unconditionally.
  */
 export function withConsumerHeader(
   headers: Record<string, string>,
@@ -121,17 +77,6 @@ export function withConsumerHeader(
 ): Record<string, string> {
   if (!consumer) return headers;
   return { ...headers, [CONSUMER_HEADER]: consumer };
-}
-
-/**
- * Constant-time string compare. Both inputs are SHA-256-hashed to a fixed
- * 32-byte width before comparison so timingSafeEqual never throws and no
- * information about key length is leaked via timing.
- */
-function safeEqual(a: string, b: string): boolean {
-  const ha = createHash("sha256").update(a).digest();
-  const hb = createHash("sha256").update(b).digest();
-  return timingSafeEqual(ha, hb);
 }
 
 /**
@@ -161,22 +106,19 @@ function authBypassAllowed(): boolean {
 }
 
 export function requireApiKey(headers: Headers): NextResponse | null {
-  // Accept the current key, the next key (rotation window), OR any
-  // individually-configured per-consumer key from VERIDYN_OCR_CONSUMER_KEYS.
-  // If none are set, auth does not gate (subject to the fail-closed check
-  // below).
-  const legacyAccepted = [veridynOcrBearer(), veridynOcrBearerNext()].filter(
-    (k): k is string => k !== null,
-  );
-  const named = consumerKeys();
+  // Accept the legacy current/next keys (rotation window) OR any named
+  // per-consumer key from the env map (lib/consumer-keys.ts). If a key
+  // source is unset, it does not gate.
+  const hasLegacy = legacyAcceptedKeys().length > 0;
+  const hasNamed = consumerKeys().size > 0;
 
-  // FAIL CLOSED: if no credentials are configured at all (legacy key(s) AND
-  // named consumer keys both empty), only local dev may pass through.
-  // Any deployed environment (production or preview) is rejected so the service
-  // never silently serves unauthenticated traffic when keys are missing.
+  // FAIL CLOSED: if no credentials are configured at all (legacy AND named
+  // both empty), only local dev may pass through. Any deployed environment
+  // (production or preview) is rejected so the service never silently
+  // serves unauthenticated traffic when keys are missing.
   // Reject with 403 (not 503): a missing-key config is a permanent "forbidden",
   // not a transient outage, so well-behaved clients stop rather than retry-storm.
-  if (legacyAccepted.length === 0 && named.size === 0) {
+  if (!hasLegacy && !hasNamed) {
     if (authBypassAllowed()) return null;
     return NextResponse.json(
       { detail: "Forbidden: API key not configured." },
@@ -190,13 +132,17 @@ export function requireApiKey(headers: Headers): NextResponse | null {
     console.warn(
       JSON.stringify({ event: "veridyn_ocr_auth", ok: false, consumer: null }),
     );
+    logUsageEvent({ consumer: null, ok: false });
     return NextResponse.json({ detail: "Unauthorized" }, { status: 401 });
   }
-  // Per-consumer attribution in the request log (finding #23) — the response
-  // header is added by callers via withConsumerHeader/resolveConsumer, since
-  // only the route builds the final NextResponse.
+  // Per-consumer attribution in the request log (main lineage) plus the
+  // usage_event.v1 metering line (consumer name + outcome only, no PII).
+  // The response attribution header is added by callers via
+  // withConsumerHeader/resolveConsumer, since only the route builds the
+  // final NextResponse.
   console.log(
     JSON.stringify({ event: "veridyn_ocr_auth", ok: true, consumer }),
   );
+  logUsageEvent({ consumer, ok: true });
   return null;
 }

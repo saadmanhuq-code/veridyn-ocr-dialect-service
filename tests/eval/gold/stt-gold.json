@@ -1,0 +1,22 @@
+{
+  "schema_version": "stt_gold.v1",
+  "description": "STT smoke fixtures for POST /api/voice/transcribe. No consented gold transcripts are committed yet (gold_transcript is null), so the runner checks response shape only: fallback contract, non-empty transcript_bn, and presence of dialect evidence. File-name dialect hints are unverified labels from the fixture file names and are reported as candidate evidence, never as accuracy truth. See docs/EVAL.md for how to add consented transcripts.",
+  "entries": [
+    {
+      "id": "stt-train-sylhet-0001",
+      "file": "tests/fixtures/train_sylhet_0001.wav",
+      "mime_type": "audio/wav",
+      "dialect_label_hint": "sylhet",
+      "gold_transcript": null,
+      "note": "Hint comes from the fixture file name only."
+    },
+    {
+      "id": "stt-train-chittagong-0001",
+      "file": "tests/fixtures/train_chittagong_0001.wav",
+      "mime_type": "audio/wav",
+      "dialect_label_hint": "chittagong",
+      "gold_transcript": null,
+      "note": "Hint comes from the fixture file name only."
+    }
+  ]
+}

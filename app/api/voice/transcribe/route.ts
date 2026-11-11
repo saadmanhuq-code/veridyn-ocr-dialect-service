@@ -7,9 +7,13 @@
  *   audio (File)         — required; audio/webm | audio/ogg | audio/m4a | audio/wav | audio/mpeg
  *   product (string)     — optional; calling product tag for corpus log (e.g. "khep", "bda")
  *   region (string)      — optional; user-declared region for corpus log
+ *   consent (string)     — optional; explicit affirmative ("true"/"1"/"yes")
+ *                          only when the end user consented to corpus
+ *                          retention. Default false: without it no corpus
+ *                          event is emitted.
  *
  * JSON body alternative:
- *   { audio_base64: string, mime_type: string, product?: string, region?: string }
+ *   { audio_base64: string, mime_type: string, product?: string, region?: string, consent?: boolean }
  *
  * Response (success):
  *   {
@@ -37,6 +41,7 @@ import { corsHeaders } from "@/lib/cors";
 import { transcribeViaBest } from "@/lib/audio-stt";
 import { normaliseBn, tagScriptMix } from "@/lib/bn-normalize";
 import { resolveDialectFromText } from "@/lib/dialect-classifier";
+import { appendCorpusEvent, contentHash, dialectCorpusFields, parseConsent } from "@/lib/corpus-log";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -78,6 +83,7 @@ export async function POST(req: NextRequest) {
   let mimeType: string;
   let product: string | undefined;
   let region: string | undefined;
+  let consent = false; // caller-supplied only; never inferred (lib/corpus-log.ts)
 
   const contentType = req.headers.get("content-type") ?? "";
 
@@ -123,6 +129,7 @@ export async function POST(req: NextRequest) {
     region = typeof formData.get("region") === "string"
       ? String(formData.get("region"))
       : undefined;
+    consent = parseConsent(formData.get("consent"));
   } else {
     // --- JSON base64 ---
     let body: unknown;
@@ -162,6 +169,7 @@ export async function POST(req: NextRequest) {
     }
     product = typeof b.product === "string" ? b.product : undefined;
     region = typeof b.region === "string" ? b.region : undefined;
+    consent = parseConsent(b.consent);
   }
 
   // --- STT ---
@@ -176,6 +184,19 @@ export async function POST(req: NextRequest) {
   const transcriptBn = normaliseBn(transcriptRaw);
   const language = tagScriptMix(transcriptBn);
   const dialect = await resolveDialectFromText(transcriptBn);
+
+  // --- Corpus log (fire-and-forget) ---
+  appendCorpusEvent({
+    event_type: "transcribe",
+    audio_sha256: contentHash(audioBytes),
+    transcript: transcriptBn,
+    language,
+    ...dialectCorpusFields(dialect),
+    product,
+    region,
+    stt_provider: result.provider,
+    consent, // caller-supplied; corpus-log emits nothing when false
+  });
 
   return NextResponse.json(
     {

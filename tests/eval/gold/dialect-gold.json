@@ -1,0 +1,935 @@
+{
+  "schema_version": "dialect_gold.v1",
+  "description": "Dialect gold set for the cue matcher behind POST /api/phrase-eval and POST /api/dialect/analyze (lib/dialect.ts inferDialectFromText; suggestion floor 0.58, curated-region floor 0.75, scoring capped at 2000 chars). Gate entries must keep passing; probe entries record true labels the current 19-phrase / 11-label catalog cannot yet resolve and never fail the run. Baselines were measured against the real matcher on 2026-11-11 (W6) and deliberately re-baselined at integration for the W1 romanized view + curated regions; refresh them deliberately when the catalog or floors change.",
+  "measured": "2026-11-11 via inferDialectFromText (cue_match only), re-measured at integration after W1 (romanized view, curated regions, input cap)",
+  "entries": [
+    {
+      "id": "sylhet-catalog-short",
+      "text": "আমি সিলেটি ভাষায় কথা কই",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sylhet",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sylhet",
+        "match_score": 1
+      },
+      "note": "Verbatim catalog cue."
+    },
+    {
+      "id": "sylhet-catalog-long",
+      "text": "তে খইনছাইন আফনের দিনখান, দিনখাল কিলাখান যায় তে? বালা যার, বাক্কা বালা যার, আফনার কিতা অবস্থা?",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sylhet",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "sample_catalog",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sylhet",
+        "match_score": 1
+      },
+      "note": "Verbatim RegSpeech12 Sylhet sample."
+    },
+    {
+      "id": "sylhet-variant-punct",
+      "text": "আমি সিলেটি ভাষায় কথা কই।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sylhet",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sylhet",
+        "match_score": 1
+      },
+      "note": "Catalog cue plus trailing danda."
+    },
+    {
+      "id": "sylhet-variant-sub",
+      "text": "তে খইনছাইন আফনের দিনখান, দিনখাল কিলাখান যায় তে?",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sylhet",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sylhet",
+        "match_score": 0.727
+      },
+      "note": "First sentence of the long Sylhet sample."
+    },
+    {
+      "id": "sylhet-probe-boundary",
+      "text": "তে খইনছাইন আফনের দিনখান কিলাখান যায় তে?",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sylhet",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sylhet",
+        "match_score": 0.632
+      },
+      "note": "Boundary case: dropping one token falls just below the 0.58 floor. Promote to gate only after a deliberate floor/catalog change."
+    },
+    {
+      "id": "sylhet-probe-novel",
+      "text": "আফনের কিতা খবর? আমি ভালা আছি, কাজকাম যাইতাছে।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sylhet",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.31
+      },
+      "note": "Novel Sylheti wording; cue matcher cannot resolve paraphrases today."
+    },
+    {
+      "id": "barishal-catalog-short",
+      "text": "আমি বরিশালে থাকি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "barishal",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "barishal",
+        "match_score": 1
+      },
+      "note": "Verbatim catalog cue."
+    },
+    {
+      "id": "barishal-catalog-long",
+      "text": "আসসালামু আলাইকুম, আমার নাম হাসিবুর রহমান শুব, ডিপারমেন্ট অব সপটোওয়্যার ইনজিনারিং, ফাস্ট সেমিস্টার, ব্যাচ নাম্বার ফোরটি। আমি ড্যাফোডিল ইন্টারন্যাশনাল ইউনিবার্সিটিতে পড়াশুনা করতেছি। আর আমার হোম টাউন হচ্ছে হলো বরিশালে।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "barishal",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "sample_catalog",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "barishal",
+        "match_score": 1
+      },
+      "note": "Verbatim RegSpeech12 Barishal sample (self-introduction, hometown cue at the end)."
+    },
+    {
+      "id": "barishal-variant-punct",
+      "text": "আমি বরিশালে থাকি।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "barishal",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "barishal",
+        "match_score": 1
+      },
+      "note": "Catalog cue plus trailing danda."
+    },
+    {
+      "id": "barishal-variant-sub",
+      "text": "আমি ড্যাফোডিল ইন্টারন্যাশনাল ইউনিবার্সিটিতে পড়াশুনা করতেছি। আর আমার হোম টাউন হচ্ছে হলো বরিশালে।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "barishal",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "barishal",
+        "match_score": 0.634
+      },
+      "note": "Floor sentinel: tail of the long Barishal sample, just above 0.58."
+    },
+    {
+      "id": "barishal-probe-novel",
+      "text": "আমার বাড়ি বরিশালে, নদীর পারে গ্রাম।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "barishal",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.397
+      },
+      "note": "Novel Barishal mention; unresolved today."
+    },
+    {
+      "id": "chittagong-catalog-short",
+      "text": "আমি চট্টগ্রামের মানুষ",
+      "expected_status": "suggested",
+      "expected_dialect_label": "chittagong",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "chittagong",
+        "match_score": 1
+      },
+      "note": "Verbatim catalog cue."
+    },
+    {
+      "id": "chittagong-catalog-long",
+      "text": "কী অবস্তা ভাইয়া, তুঁই গম আসো না? অ বালা আছি। তোঁয়ার বাড়ি খডে দে ভাইয়্যে? আঁর বাড়ি অইলদি কক্সবাজারর চকরিয়া। চকরিয়া খোন জাগাত ফইজ্জে দে তোঁয়ার বাড়ি ইবে? চকরিয়ার বড় মোহরি, হিন্দুফারা. বড় মোহরির মইদ্যে এহন তোঁয়ারার উইন্দি দি ছাত্রলীগর সভাপতি খন ?",
+      "expected_status": "suggested",
+      "expected_dialect_label": "chittagong",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "sample_catalog",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "chittagong",
+        "match_score": 1
+      },
+      "note": "Verbatim RegSpeech12 Chittagong sample."
+    },
+    {
+      "id": "chittagong-variant-punct",
+      "text": "আমি চট্টগ্রামের মানুষ।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "chittagong",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "chittagong",
+        "match_score": 1
+      },
+      "note": "Catalog cue plus trailing danda."
+    },
+    {
+      "id": "chittagong-probe-sub",
+      "text": "কী অবস্তা ভাইয়া, তুঁই গম আসো না? অ বালা আছি।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "chittagong",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.435
+      },
+      "note": "Head of the long sample alone stays below floor today."
+    },
+    {
+      "id": "chittagong-probe-novel",
+      "text": "আঁই চিটাগাংগ্যা, গম আছি।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "chittagong",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.292
+      },
+      "note": "Novel Chittagonian wording; unresolved today."
+    },
+    {
+      "id": "noakhali-catalog-short",
+      "text": "নোয়াখালীতে আইজ বৃষ্টি হইব",
+      "expected_status": "suggested",
+      "expected_dialect_label": "noakhali",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "noakhali",
+        "match_score": 1
+      },
+      "note": "Verbatim catalog cue."
+    },
+    {
+      "id": "noakhali-catalog-long",
+      "text": "অন কথা হচ্ছে আমরা তো ইয়ানে আড্ডাদি না বন্ধু। আমরা আড্ডাদি মেলা দূর একজাগাত। কোনাই? সুজাহুর, সুজাহুর তো তুই চিনতি ন। সুজাপুরের নাম শুনছিলাম মনে অয়। অনেক দূরে",
+      "expected_status": "suggested",
+      "expected_dialect_label": "noakhali",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "sample_catalog",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "noakhali",
+        "match_score": 1
+      },
+      "note": "Verbatim RegSpeech12 Noakhali sample."
+    },
+    {
+      "id": "noakhali-variant-punct",
+      "text": "নোয়াখালীতে আইজ বৃষ্টি হইব।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "noakhali",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "noakhali",
+        "match_score": 1
+      },
+      "note": "Catalog cue plus trailing danda."
+    },
+    {
+      "id": "noakhali-probe-sub",
+      "text": "অন কথা হচ্ছে আমরা তো ইয়ানে আড্ডাদি না বন্ধু।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "noakhali",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.545
+      },
+      "note": "Head of the long sample alone stays below floor today."
+    },
+    {
+      "id": "noakhali-probe-novel",
+      "text": "আন্নেরা কেমন আছেন? হিয়ানে আইজ বৃষ্টি অইব।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "noakhali",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.425
+      },
+      "note": "Novel Noakhali wording; unresolved today."
+    },
+    {
+      "id": "rangpur-catalog",
+      "text": "সুমন তারপর হইলো রানা, তারপর জসিম, জাকারিয়া এরা কয়েকঝনের নাম দিছলাম ওটে।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "rangpur",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "sample_catalog",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "rangpur",
+        "match_score": 1
+      },
+      "note": "Verbatim RegSpeech12 Rangpur sample; the catalog holds one Rangpur phrase."
+    },
+    {
+      "id": "rangpur-variant-nodanda",
+      "text": "সুমন তারপর হইলো রানা, তারপর জসিম, জাকারিয়া এরা কয়েকঝনের নাম দিছলাম ওটে",
+      "expected_status": "suggested",
+      "expected_dialect_label": "rangpur",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "rangpur",
+        "match_score": 1
+      },
+      "note": "Catalog sample without trailing danda."
+    },
+    {
+      "id": "rangpur-variant-drift",
+      "text": "সুমন তারপর হইলো রানা, তারপর জসিম এরা কয়েকঝনের নাম দিছলাম ওটে।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "rangpur",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "rangpur",
+        "match_score": 0.952
+      },
+      "note": "One token dropped from the catalog sample."
+    },
+    {
+      "id": "rangpur-probe-novel",
+      "text": "মুই রংপুরের মানষি, ওটে থাকোং।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "rangpur",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.324
+      },
+      "note": "Novel Rangpur wording; unresolved today."
+    },
+    {
+      "id": "sandwip-catalog",
+      "text": "আইচ্ছা। আমনেরা এনজিও সম্পর্কে কিছু জানেন নে? জানি। তো এনজিও, টাকা লই না, আইচ্ছা, হিয়াল্লাই জানি, আইচ্ছা।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sandwip",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "sample_catalog",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sandwip",
+        "match_score": 1
+      },
+      "note": "Verbatim RegSpeech12 Sandwip sample; the catalog holds one Sandwip phrase."
+    },
+    {
+      "id": "sandwip-variant-short",
+      "text": "আইচ্ছা। আমনেরা এনজিও সম্পর্কে কিছু জানেন নে?",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sandwip",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sandwip",
+        "match_score": 0.7
+      },
+      "note": "Floor sentinel: head of the Sandwip sample, just above 0.58."
+    },
+    {
+      "id": "sandwip-variant-nodanda",
+      "text": "আইচ্ছা। আমনেরা এনজিও সম্পর্কে কিছু জানেন নে? জানি। তো এনজিও, টাকা লই না, আইচ্ছা, হিয়াল্লাই জানি, আইচ্ছা",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sandwip",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sandwip",
+        "match_score": 1
+      },
+      "note": "Catalog sample without trailing danda."
+    },
+    {
+      "id": "sandwip-probe-novel",
+      "text": "আমনেরা আইচ্ছা করি শুনেন, হিয়াল্লাই কই।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sandwip",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.316
+      },
+      "note": "Novel Sandwip wording; unresolved today."
+    },
+    {
+      "id": "dhaka-catalog",
+      "text": "আমি ঢাকায় থাকি, এখানে অনেক মানুষ।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "dhaka",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "dhaka",
+        "match_score": 1
+      },
+      "note": "Verbatim standard-Dhaka catalog cue; the catalog holds one Dhaka phrase."
+    },
+    {
+      "id": "dhaka-variant-nodanda",
+      "text": "আমি ঢাকায় থাকি, এখানে অনেক মানুষ",
+      "expected_status": "suggested",
+      "expected_dialect_label": "dhaka",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "dhaka",
+        "match_score": 1
+      },
+      "note": "Catalog cue without trailing danda."
+    },
+    {
+      "id": "dhaka-variant-extended",
+      "text": "আমি ঢাকায় থাকি, এখানে অনেক মানুষ আছে।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "dhaka",
+      "tier": "variant",
+      "script": "bn",
+      "gate": true,
+      "source": "w6-synthetic-variant",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "dhaka",
+        "match_score": 0.923
+      },
+      "note": "Catalog cue plus one trailing word."
+    },
+    {
+      "id": "dhaka-probe-confusion",
+      "text": "আমি ঢাকায় থাকি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "dhaka",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "barishal",
+        "match_score": 0.667
+      },
+      "note": "Known confusion: the bare clause scores closer to the Barishal cue (আমি বরিশালে থাকি) than to the Dhaka cue, so the matcher suggests the wrong region. Truth stays dhaka; fix belongs in the catalog, not in this expectation."
+    },
+    {
+      "id": "dhaka-probe-novel",
+      "text": "আমি আজ বাজারে যাচ্ছি এবং বিকেলে বাসায় ফিরব।",
+      "expected_status": "suggested",
+      "expected_dialect_label": "dhaka",
+      "tier": "probe",
+      "script": "bn",
+      "gate": false,
+      "source": "w6-probe",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.302
+      },
+      "note": "Neutral standard Bangla; unresolved is honest here (no regional marker)."
+    },
+    {
+      "id": "banglish-sylhet",
+      "text": "ami sylheti bhashay kotha koi",
+      "expected_status": "suggested",
+      "expected_dialect_label": "sylhet",
+      "tier": "catalog",
+      "script": "banglish",
+      "gate": true,
+      "source": "w6-negative",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "sylhet",
+        "match_score": 1
+      },
+      "note": "Re-baselined at W1 integration: romanized view resolves the Sylhet catalog cue (lib/dialect.test.ts). Was a pre-W1 negative."
+    },
+    {
+      "id": "banglish-greeting",
+      "text": "apnar kita khobor, ami bhala achi",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "banglish",
+      "gate": true,
+      "source": "w6-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.222
+      },
+      "note": "Banglish greeting; must stay unresolved."
+    },
+    {
+      "id": "banglish-dhaka",
+      "text": "ami dhakay thaki, ekhane onek manush",
+      "expected_status": "suggested",
+      "expected_dialect_label": "dhaka",
+      "tier": "catalog",
+      "script": "banglish",
+      "gate": true,
+      "source": "w6-negative",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "dhaka",
+        "match_score": 1
+      },
+      "note": "Re-baselined at W1 integration: romanized view resolves the Dhaka catalog cue. Was a pre-W1 negative."
+    },
+    {
+      "id": "english-dhaka",
+      "text": "I live in Dhaka and work in software engineering.",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "en",
+      "gate": true,
+      "source": "w6-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.114
+      },
+      "note": "Bangladeshi English must not resolve to a Bengali dialect."
+    },
+    {
+      "id": "english-invoice",
+      "text": "The invoice total is 5000 taka, please pay by Friday.",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "en",
+      "gate": true,
+      "source": "w6-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.143
+      },
+      "note": "English business text; must stay unresolved."
+    },
+    {
+      "id": "english-licence",
+      "text": "Please upload your trade licence for verification.",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "en",
+      "gate": true,
+      "source": "w6-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.102
+      },
+      "note": "English instruction text; must stay unresolved."
+    },
+    {
+      "id": "rajshahi-bn-chip",
+      "text": "আমি রাজশাহীর মানুষ, পদ্মার পাড়ে বাড়ি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "rajshahi",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "rajshahi",
+        "match_score": 1
+      },
+      "note": "W1 curated-region chip (candidate evidence, 0.75 curated floor; exact chip = 1.0)."
+    },
+    {
+      "id": "rajshahi-bn-curated",
+      "text": "হামার বাড়ি রাজশাহীতে, আমের বাগান আর পদ্মা নদীর পাড়ে থাকি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "rajshahi",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "curated_cue",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "rajshahi",
+        "match_score": 1
+      },
+      "note": "W1 curated cue (candidate evidence, not corpus sample)."
+    },
+    {
+      "id": "rajshahi-banglish",
+      "text": "hamar bari rajshahite amer bagan ar podda nodir pare thaki",
+      "expected_status": "suggested",
+      "expected_dialect_label": "rajshahi",
+      "tier": "catalog",
+      "script": "banglish",
+      "gate": true,
+      "source": "w1-banglish",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "rajshahi",
+        "match_score": 1
+      },
+      "note": "Romanized rendering of the curated cue; resolves via the Banglish view."
+    },
+    {
+      "id": "khulna-bn-chip",
+      "text": "আমি খুলনার মানুষ, রূপসা নদীর পাড়ে থাকি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "khulna",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "khulna",
+        "match_score": 1
+      },
+      "note": "W1 curated-region chip (candidate evidence, 0.75 curated floor; exact chip = 1.0)."
+    },
+    {
+      "id": "khulna-bn-curated",
+      "text": "কিরাম আছো? আমরা খুলনার রূপসা নদীর পাড়ে থাকি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "khulna",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "curated_cue",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "khulna",
+        "match_score": 1
+      },
+      "note": "W1 curated cue (candidate evidence, not corpus sample)."
+    },
+    {
+      "id": "khulna-banglish",
+      "text": "ami khulnar manush rupsa nodir pare thaki",
+      "expected_status": "suggested",
+      "expected_dialect_label": "khulna",
+      "tier": "catalog",
+      "script": "banglish",
+      "gate": true,
+      "source": "w1-banglish",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "khulna",
+        "match_score": 1
+      },
+      "note": "Romanized rendering of the curated cue; resolves via the Banglish view."
+    },
+    {
+      "id": "mymensingh-bn-chip",
+      "text": "আমি ময়মনসিংহের মানুষ, ব্রহ্মপুত্রের পাড়ে বাড়ি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "mymensingh",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "mymensingh",
+        "match_score": 1
+      },
+      "note": "W1 curated-region chip (candidate evidence, 0.75 curated floor; exact chip = 1.0)."
+    },
+    {
+      "id": "mymensingh-bn-curated",
+      "text": "কেডা আইতাছে? আমরা ময়মনসিংহের মানুষ, পুরান ব্রহ্মপুত্রের পাড়ে থাকি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "mymensingh",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "curated_cue",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "mymensingh",
+        "match_score": 1
+      },
+      "note": "W1 curated cue (candidate evidence, not corpus sample)."
+    },
+    {
+      "id": "mymensingh-banglish",
+      "text": "ami mymensingher manush brahmaputrer pare bari",
+      "expected_status": "suggested",
+      "expected_dialect_label": "mymensingh",
+      "tier": "catalog",
+      "script": "banglish",
+      "gate": true,
+      "source": "w1-banglish",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "mymensingh",
+        "match_score": 1
+      },
+      "note": "Romanized rendering of the curated cue; resolves via the Banglish view."
+    },
+    {
+      "id": "cumilla-bn-chip",
+      "text": "আমি কুমিল্লার মানুষ, গোমতী নদীর পাড়ে থাকি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "cumilla",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "phrase_chip",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "cumilla",
+        "match_score": 1
+      },
+      "note": "W1 curated-region chip (candidate evidence, 0.75 curated floor; exact chip = 1.0)."
+    },
+    {
+      "id": "cumilla-bn-curated",
+      "text": "কিতা করতাছো? আমরা কুমিল্লায় থাকি, ধর্মসাগরের কাছে বাড়ি",
+      "expected_status": "suggested",
+      "expected_dialect_label": "cumilla",
+      "tier": "catalog",
+      "script": "bn",
+      "gate": true,
+      "source": "curated_cue",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "cumilla",
+        "match_score": 1
+      },
+      "note": "W1 curated cue (candidate evidence, not corpus sample)."
+    },
+    {
+      "id": "cumilla-banglish",
+      "text": "ami cumillar manush gomti nodir pare thaki",
+      "expected_status": "suggested",
+      "expected_dialect_label": "cumilla",
+      "tier": "catalog",
+      "script": "banglish",
+      "gate": true,
+      "source": "w1-banglish",
+      "baseline": {
+        "status": "suggested",
+        "dialect_label": "cumilla",
+        "match_score": 1
+      },
+      "note": "Romanized rendering of the curated cue; resolves via the Banglish view."
+    },
+    {
+      "id": "banglish-neg-office",
+      "text": "ami kal office jabo na, basay thaki",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "banglish",
+      "gate": true,
+      "source": "integration-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.4
+      },
+      "note": "Conversational Banglish with no catalog cue; must stay unresolved."
+    },
+    {
+      "id": "banglish-neg-market",
+      "text": "tumi bazare jaba naki, ekhane onek bhir",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "banglish",
+      "gate": true,
+      "source": "integration-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.405
+      },
+      "note": "Conversational Banglish with no catalog cue; must stay unresolved."
+    },
+    {
+      "id": "banglish-neg-weather",
+      "text": "ajke onek brishti hoise, rastay pani jomche",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "banglish",
+      "gate": true,
+      "source": "integration-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.182
+      },
+      "note": "Conversational Banglish with no catalog cue; must stay unresolved."
+    },
+    {
+      "id": "bdenglish-neg-taka",
+      "text": "The supplier confirmed the total amount is five thousand taka and requested that we transfer the taka balance to the office account before the delivery date next week.",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "en",
+      "gate": true,
+      "source": "integration-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.127
+      },
+      "note": "Bangladeshi English repeating a loanword; script_mix stays en, never a dialect."
+    },
+    {
+      "id": "place-neg-rajshahi-news",
+      "text": "রাজশাহীতে আজ বৃষ্টি হয়েছে এবং অনেক মানুষ রাস্তায় বের হয়েছে",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "bn",
+      "gate": true,
+      "source": "integration-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.267
+      },
+      "note": "Standard Bengali merely mentioning Rajshahi; a place mention is not dialect evidence."
+    },
+    {
+      "id": "place-neg-khulna-weak",
+      "text": "খুলনার মানুষ নদীর পাড়ে থাকে",
+      "expected_status": "unresolved",
+      "expected_dialect_label": null,
+      "tier": "negative",
+      "script": "bn",
+      "gate": true,
+      "source": "integration-negative",
+      "baseline": {
+        "status": "unresolved",
+        "dialect_label": null,
+        "match_score": 0.711
+      },
+      "note": "Weak Khulna place mention (candidate 0.711) stays unresolved under the 0.75 curated-region floor."
+    }
+  ]
+}

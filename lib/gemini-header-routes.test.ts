@@ -60,7 +60,9 @@ function assertHeaderAuthentication(requests: ProviderRequest[], mime: string) {
   const request = requests[0]!;
   const url = new URL(request.url);
   assert.equal(url.origin, "https://generativelanguage.googleapis.com");
-  assert.equal(url.pathname, "/v1beta/models/gemini-2.0-flash:generateContent");
+  // Merged default: integrated gemini-2.5-flash supersedes main's retired
+  // gemini-2.0-flash (see lib/deploy-config.test.ts); header auth is main's.
+  assert.equal(url.pathname, "/v1beta/models/gemini-2.5-flash:generateContent");
   assert.equal(request.headers.get("x-goog-api-key"), providerKey);
   assert.equal(url.search, "", "Gemini credentials must not appear in request URLs");
   assert.ok(!request.url.includes(providerKey));
