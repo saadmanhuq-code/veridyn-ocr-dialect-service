@@ -32,6 +32,7 @@ let savedNodeEnv: string | undefined;
 let savedVercel: string | undefined;
 let savedAllowUnauthed: string | undefined;
 let savedConsumerKeys: string | undefined;
+let savedScopedKeys: string | undefined;
 
 beforeEach(() => {
   savedKey = process.env.VERIDYN_OCR_API_KEY;
@@ -40,9 +41,14 @@ beforeEach(() => {
   savedVercel = process.env.VERCEL;
   savedAllowUnauthed = process.env.VERIDYN_OCR_ALLOW_UNAUTHENTICATED;
   savedConsumerKeys = process.env.VERIDYN_OCR_CONSUMER_KEYS;
+  // Integrated: VERIDYN_OCR_API_KEYS also configures the gate (merged with
+  // VERIDYN_OCR_CONSUMER_KEYS in lib/consumer-keys.ts) — clear it so the
+  // fail-closed matrix is not ambient-env dependent.
+  savedScopedKeys = process.env.VERIDYN_OCR_API_KEYS;
   delete process.env.VERIDYN_OCR_API_KEY;
   delete process.env.VERIDYN_OCR_API_KEY_NEXT;
   delete process.env.VERIDYN_OCR_CONSUMER_KEYS;
+  delete process.env.VERIDYN_OCR_API_KEYS;
   // Default to the local-dev posture (not on Vercel, not a production build).
   // VERIDYN_OCR_ALLOW_UNAUTHENTICATED is NOT set by default — bypass now
   // requires explicit opt-in, so tests must set it where they need bypass behavior.
@@ -65,6 +71,8 @@ afterEach(() => {
     process.env.VERIDYN_OCR_ALLOW_UNAUTHENTICATED = savedAllowUnauthed;
   if (savedConsumerKeys === undefined) delete process.env.VERIDYN_OCR_CONSUMER_KEYS;
   else process.env.VERIDYN_OCR_CONSUMER_KEYS = savedConsumerKeys;
+  if (savedScopedKeys === undefined) delete process.env.VERIDYN_OCR_API_KEYS;
+  else process.env.VERIDYN_OCR_API_KEYS = savedScopedKeys;
 });
 
 test("rotation window: OLD key authorizes when both keys are set", () => {

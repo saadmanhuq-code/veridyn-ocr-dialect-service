@@ -42,6 +42,38 @@ export const DIALECT_CUE_CHIPS: DialectSample[] = [
     region: "Noakhali",
     source: "phrase_chip",
   },
+  {
+    id: "rajshahi",
+    label: "Rajshahi",
+    phrase: "আমি রাজশাহীর মানুষ, পদ্মার পাড়ে বাড়ি",
+    dialect: "rajshahi",
+    region: "Rajshahi",
+    source: "phrase_chip",
+  },
+  {
+    id: "khulna",
+    label: "Khulna",
+    phrase: "আমি খুলনার মানুষ, রূপসা নদীর পাড়ে থাকি",
+    dialect: "khulna",
+    region: "Khulna",
+    source: "phrase_chip",
+  },
+  {
+    id: "mymensingh",
+    label: "Mymensingh",
+    phrase: "আমি ময়মনসিংহের মানুষ, ব্রহ্মপুত্রের পাড়ে বাড়ি",
+    dialect: "mymensingh",
+    region: "Mymensingh",
+    source: "phrase_chip",
+  },
+  {
+    id: "cumilla",
+    label: "Cumilla",
+    phrase: "আমি কুমিল্লার মানুষ, গোমতী নদীর পাড়ে থাকি",
+    dialect: "cumilla",
+    region: "Cumilla",
+    source: "phrase_chip",
+  },
 ];
 
 export const DIALECT_SAMPLES: DialectSample[] = [
@@ -99,12 +131,51 @@ export const DIALECT_SAMPLES: DialectSample[] = [
     region: "Sandwip",
     source: "RegSpeech12",
   },
+  // Curated regional cues (W1) — candidate evidence only, NOT corpus samples.
+  // Deliberately not labelled RegSpeech12 and ids do not end in "-long", so
+  // the lab UI never presents them as recorded samples.
+  {
+    id: "rajshahi-curated",
+    label: "Rajshahi curated cue",
+    phrase: "হামার বাড়ি রাজশাহীতে, আমের বাগান আর পদ্মা নদীর পাড়ে থাকি",
+    dialect: "rajshahi",
+    region: "Rajshahi",
+    source: "curated_cue",
+  },
+  {
+    id: "khulna-curated",
+    label: "Khulna curated cue",
+    phrase: "কিরাম আছো? আমরা খুলনার রূপসা নদীর পাড়ে থাকি",
+    dialect: "khulna",
+    region: "Khulna",
+    source: "curated_cue",
+  },
+  {
+    id: "mymensingh-curated",
+    label: "Mymensingh curated cue",
+    phrase: "কেডা আইতাছে? আমরা ময়মনসিংহের মানুষ, পুরান ব্রহ্মপুত্রের পাড়ে থাকি",
+    dialect: "mymensingh",
+    region: "Mymensingh",
+    source: "curated_cue",
+  },
+  {
+    id: "cumilla-curated",
+    label: "Cumilla curated cue",
+    phrase: "কিতা করতাছো? আমরা কুমিল্লায় থাকি, ধর্মসাগরের কাছে বাড়ি",
+    dialect: "cumilla",
+    region: "Cumilla",
+    source: "curated_cue",
+  },
 ];
 
 export const DIALECT_OPTIONS = [
   { value: "barishal", label: "Barishal / বরিশাল" },
   { value: "chittagong", label: "Chittagong / চট্টগ্রাম" },
+  { value: "cumilla", label: "Cumilla / কুমিল্লা" },
+  { value: "khulna", label: "Khulna / খুলনা" },
+  { value: "mymensingh", label: "Mymensingh / ময়মনসিংহ" },
   { value: "noakhali", label: "Noakhali / নোয়াখালী" },
+  { value: "rajshahi", label: "Rajshahi / রাজশাহী" },
   { value: "rangpur", label: "Rangpur / রংপুর" },
   { value: "sandwip", label: "Sandwip / সন্দ্বীপ" },
   { value: "sylhet", label: "Sylhet / সিলেট" },

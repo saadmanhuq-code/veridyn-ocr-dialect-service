@@ -7,6 +7,10 @@
  *   image (File)         — required; image/jpeg | image/png | image/webp; ≤4 MB
  *   product (string)     — optional; calling product tag for corpus log
  *   region (string)      — optional; user-declared region
+ *   consent (string)     — optional; explicit affirmative ("true"/"1"/"yes")
+ *                          only when the end user consented to corpus
+ *                          retention. Default false: without it no corpus
+ *                          event is emitted.
  *
  * Auth / CORS: identical to /api/documents/extract.
  *
@@ -27,6 +31,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiKey, resolveConsumer, withConsumerHeader } from "@/lib/auth";
 import { corsHeaders } from "@/lib/cors";
 import { analyzeImageIntent } from "@/lib/image-intent";
+import { appendCorpusEvent, contentHash, parseConsent } from "@/lib/corpus-log";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -91,6 +96,7 @@ export async function POST(req: NextRequest) {
     typeof formData.get("product") === "string" ? String(formData.get("product")) : undefined;
   const region =
     typeof formData.get("region") === "string" ? String(formData.get("region")) : undefined;
+  const consent = parseConsent(formData.get("consent"));
 
   const imageBytes = Buffer.from(await raw.arrayBuffer());
 
@@ -113,6 +119,17 @@ export async function POST(req: NextRequest) {
       { headers: corsHeaders(origin) },
     );
   }
+
+  // Corpus log (fire-and-forget)
+  appendCorpusEvent({
+    event_type: "image_intent",
+    image_sha256: contentHash(imageBytes),
+    language: result.language,
+    intent_category: result.category_hints[0],
+    product,
+    region,
+    consent, // caller-supplied; corpus-log emits nothing when false
+  });
 
   return NextResponse.json(result, { headers: withConsumerHeader(corsHeaders(origin), consumer) });
 }

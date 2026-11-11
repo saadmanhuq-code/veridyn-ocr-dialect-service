@@ -25,7 +25,7 @@ describe(
         .trim()
         .toLowerCase();
 
-      assert.equal(model, process.env.VERTEX_MODEL?.trim() || "gemini-2.5-flash");
+      assert.equal(model, process.env.VERTEX_MODEL?.trim() || "gemini-3.8-flash");
       assert.ok(latency_ms >= 0, "latency_ms must be non-negative");
       assert.ok(text.includes("vertex ok"), `unexpected Vertex text response: ${text}`);
     });
@@ -35,7 +35,7 @@ describe(
       const result = await transcribeViaVertex(audioBytes, "audio/wav");
 
       assert.equal(result.provider, "vertex");
-      assert.equal(result.model, process.env.VERTEX_MODEL?.trim() || "gemini-2.5-flash");
+      assert.equal(result.model, process.env.VERTEX_MODEL?.trim() || "gemini-3.8-flash");
       assert.ok(result.latency_ms >= 0, "latency_ms must be non-negative");
       assert.ok(result.transcript.length > 0, "transcript must be non-empty");
     });

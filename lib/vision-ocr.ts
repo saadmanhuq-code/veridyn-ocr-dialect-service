@@ -77,7 +77,7 @@ async function ocrImageViaGeminiStudio(
 
   const b64 = imageBytes.toString("base64");
   const mime = mimeFromBuffer(imageBytes);
-  const model = process.env.GEMINI_OCR_MODEL?.trim() || "gemini-2.0-flash";
+  const model = process.env.GEMINI_OCR_MODEL?.trim() || "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const res = await fetch(url, {
     method: "POST",

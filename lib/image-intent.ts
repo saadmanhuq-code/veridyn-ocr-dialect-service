@@ -129,7 +129,7 @@ async function intentViaGemini(imageBytes: Buffer): Promise<ImageIntentResult> {
   const b64 = imageBytes.toString("base64");
   const mime = mimeFromBuffer(imageBytes);
   const model =
-    process.env.VERIDYN_IMAGE_INTENT_MODEL?.trim() || "gemini-2.0-flash";
+    process.env.VERIDYN_IMAGE_INTENT_MODEL?.trim() || "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const t0 = Date.now();

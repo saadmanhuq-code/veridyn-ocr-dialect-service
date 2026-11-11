@@ -11,7 +11,7 @@
  * Never throws on a missing vendor — only on a confirmed API error.
  *
  * Env:
- *   VERIDYN_STT_MODEL         — Gemini STT model (default "gemini-2.0-flash")
+ *   VERIDYN_STT_MODEL         — Gemini STT model (default "gemini-2.5-flash")
  *   GOOGLE_SERVICE_ACCOUNT_JSON + VERTEX_PROJECT/VERTEX_LOCATION/VERTEX_MODEL
  *   GOOGLE_AI_STUDIO_KEY | GEMINI_API_KEY | GOOGLE_CLOUD_VISION_API_KEY
  *   OPENROUTER_API_KEY
@@ -107,7 +107,7 @@ export async function transcribeViaGeminiStudio(
   if (!apiKey) throw new Error("Gemini API key is not configured");
 
   const b64 = audioBytes.toString("base64");
-  const model = process.env.VERIDYN_STT_MODEL?.trim() || "gemini-2.0-flash";
+  const model = process.env.VERIDYN_STT_MODEL?.trim() || "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const t0 = Date.now();

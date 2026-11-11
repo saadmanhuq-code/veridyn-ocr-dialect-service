@@ -1,3 +1,5 @@
+import { extractStructuredFields } from "./extract-schemas";
+
 /** Port of Veridyn `extract_candidate_facts_from_text` hints (deterministic regex). */
 
 const BN_DIGIT_MAP: Record<string, string> = {
@@ -133,4 +135,24 @@ export function buildDocumentFactCandidates(text: string): Array<{ fact_key: str
       value,
       source: "document_text_hint",
     }));
+}
+
+/**
+ * Compat bridge (additive): project the W2 schema-versioned extractions
+ * (lib/extract-schemas.ts, bd_extract.v1) into the existing candidate-facts
+ * row shape. Existing callers of extractCandidateFactsFromText /
+ * buildDocumentFactCandidates are unchanged; integration may opt in here.
+ * Every row stays candidate-only, like the hint rows above.
+ */
+export function buildDocumentSchemaCandidates(
+  text: string,
+): Array<{ fact_key: string; label: string; value: string; source: string }> {
+  const rows: Array<{ fact_key: string; label: string; value: string; source: string }> = [];
+  for (const extraction of extractStructuredFields(text).extractions) {
+    for (const field of extraction.fields) {
+      const key = `${extraction.schema}.${field.field}`;
+      rows.push({ fact_key: key, label: humanFactLabel(key), value: field.value, source: "bd_extract.v1_candidate" });
+    }
+  }
+  return rows.sort((a, b) => a.fact_key.localeCompare(b.fact_key));
 }

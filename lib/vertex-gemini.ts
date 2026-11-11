@@ -2,7 +2,7 @@ import { getVertexAccessToken, isVertexServiceAccountConfigured } from "./vertex
 
 const DEFAULT_VERTEX_PROJECT = "gen-lang-client-0305450104";
 const DEFAULT_VERTEX_LOCATION = "global";
-const DEFAULT_VERTEX_MODEL = "gemini-2.5-flash";
+const DEFAULT_VERTEX_MODEL = "gemini-3.8-flash";
 
 export type VertexGeminiPart =
   | { text: string }
